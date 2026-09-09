@@ -137,3 +137,33 @@
 .delay-500 { animation-delay: 0.5s; }
 .delay-600 { animation-delay: 0.6s; }
 
+/* ── Date input: style native dd-mm-yyyy fields + calendar icon ── */
+input[type="date"]::-webkit-datetime-edit-text,
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #3a3329;
+}
+
+/* Highlight whichever segment the user is actively editing */
+input[type="date"]::-webkit-datetime-edit-month-field:focus,
+input[type="date"]::-webkit-datetime-edit-day-field:focus,
+input[type="date"]::-webkit-datetime-edit-year-field:focus {
+  color: #e8e0d4;
+  background-color: #c9a84c22;
+  border-radius: 2px;
+}
+
+/* Calendar picker icon — match the faded placeholder tone */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.25;
+  filter: invert(1) sepia(0.3) hue-rotate(5deg);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.55;
+}
+
+

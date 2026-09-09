@@ -32,6 +32,7 @@ export default function AuthPanel({ authMode, setAuthMode }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [dob, setDob] = useState({ day: '', month: '', year: '' })
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -109,6 +110,94 @@ export default function AuthPanel({ authMode, setAuthMode }) {
             />
           </div>
         )}
+
+        {/* Date of Birth field (signup only) */}
+        {!isSignIn && (() => {
+          // Compute real max days for the chosen month/year
+          // new Date(y, m, 0).getDate() → last day of month m in year y
+          const refYear  = dob.year  ? Number(dob.year)  : 2000   // 2000 = leap year fallback
+          const refMonth = dob.month ? Number(dob.month) : 0
+          const maxDays  = refMonth ? new Date(refYear, refMonth, 0).getDate() : 31
+
+          const handleMonth = (e) => {
+            const newMonth = e.target.value
+            const newMax   = new Date(refYear, Number(newMonth), 0).getDate()
+            setDob(p => ({
+              ...p,
+              month: newMonth,
+              day: p.day && Number(p.day) > newMax ? '' : p.day,
+            }))
+          }
+          const handleYear = (e) => {
+            const newYear = e.target.value
+            const newMax  = refMonth ? new Date(Number(newYear), refMonth, 0).getDate() : 31
+            setDob(p => ({
+              ...p,
+              year: newYear,
+              day: p.day && Number(p.day) > newMax ? '' : p.day,
+            }))
+          }
+
+          return (
+            <div>
+              <label className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase flex items-center gap-1.5 mb-2">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Date of Birth
+              </label>
+              <div className="flex gap-2">
+                {/* Day — only shows valid days for the chosen month/year */}
+                <select
+                  value={dob.day}
+                  onChange={(e) => setDob(p => ({ ...p, day: e.target.value }))}
+                  required={!isSignIn}
+                  style={{ color: dob.day ? '#e8e0d4' : '#3a3329' }}
+                  className="flex-1 bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="" disabled style={{ color: '#3a3329' }}>DD</option>
+                  {Array.from({ length: maxDays }, (_, i) => i + 1).map(d => (
+                    <option key={d} value={d} style={{ color: '#e8e0d4', background: '#1a1814' }}>
+                      {String(d).padStart(2, '0')}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Month */}
+                <select
+                  value={dob.month}
+                  onChange={handleMonth}
+                  required={!isSignIn}
+                  style={{ color: dob.month ? '#e8e0d4' : '#3a3329' }}
+                  className="flex-[1.4] bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="" disabled style={{ color: '#3a3329' }}>Month</option>
+                  {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                    <option key={m} value={i + 1} style={{ color: '#e8e0d4', background: '#1a1814' }}>{m}</option>
+                  ))}
+                </select>
+
+                {/* Year */}
+                <select
+                  value={dob.year}
+                  onChange={handleYear}
+                  required={!isSignIn}
+                  style={{ color: dob.year ? '#e8e0d4' : '#3a3329' }}
+                  className="flex-[1.2] bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="" disabled style={{ color: '#3a3329' }}>YYYY</option>
+                  {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                    <option key={y} value={y} style={{ color: '#e8e0d4', background: '#1a1814' }}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )
+        })()}
+
 
         {/* Email */}
         <div>
