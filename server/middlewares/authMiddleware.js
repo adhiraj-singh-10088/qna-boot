@@ -8,7 +8,7 @@ export default function authMiddleware(req, res, next) {
   if (!authHeader) return res.status(401).json({ error: "No token provided" });
 
   const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0] !== "Bearer")
+  if (parts.length !== 2 || parts[0].toLowerCase() !== "bearer")
     return res.status(401).json({ error: "Invalid token format" });
 
   const token = parts[1];
