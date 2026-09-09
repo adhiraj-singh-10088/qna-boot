@@ -32,6 +32,7 @@ export default function AuthPanel({ authMode, setAuthMode }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [dob, setDob] = useState({ day: '', month: '', year: '' })
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -108,6 +109,26 @@ export default function AuthPanel({ authMode, setAuthMode }) {
               required={!isSignIn}
               className="w-full bg-[#1a1814] border border-[#2e2a24] rounded-xl px-4 py-3 text-sm text-[#e8e0d4] placeholder-[#3a3329] font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all"
             />
+          </div>
+        )}
+
+        {/* Username field (signup only) */}
+        {!isSignIn && (
+          <div>
+            <label className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase block mb-2">
+              Username
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a5248] font-sans-ui text-sm select-none">@</span>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.replace(/\s/g, '').toLowerCase())}
+                placeholder="yourhandle"
+                required={!isSignIn}
+                className="w-full bg-[#1a1814] border border-[#2e2a24] rounded-xl pl-8 pr-4 py-3 text-sm text-[#e8e0d4] placeholder-[#3a3329] font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all"
+              />
+            </div>
           </div>
         )}
 
