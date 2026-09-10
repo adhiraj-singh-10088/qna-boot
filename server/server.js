@@ -1,3 +1,4 @@
+import db from './utils/db.js'; 
 import express from "express";
 import dotenv from "dotenv";
 import authRouter from "./routes/auth.js";
@@ -12,7 +13,16 @@ app.get("/", (req, res) => res.send("Hey Chat"));
 
 app.use("/auth", authRouter);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3036;
+// app.get('/check-db', async (req, res) => {
+//   try {
+//     // Re-use whatever database pool import Adhiraj created (e.g., db or pool)
+//     const [rows] = await db.execute('SELECT 1 + 1 AS result'); 
+//     res.json({ status: 'Database connected!', data: rows });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
