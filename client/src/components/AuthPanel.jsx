@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { signupUser, loginUser } from '../api/auth'
+import { useAuth } from '../context/AuthContext'
 
 /* Google "G" coloured SVG icon */
 function GoogleIcon() {
@@ -29,6 +31,7 @@ function EyeIcon({ open }) {
 
 export default function AuthPanel({ authMode, setAuthMode }) {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -36,17 +39,35 @@ export default function AuthPanel({ authMode, setAuthMode }) {
   const [dob, setDob] = useState({ day: '', month: '', year: '' })
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const isSignIn = authMode === 'signin'
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
     setLoading(true)
-    // Simulated auth — redirect to post creation after 1.5s
-    setTimeout(() => {
+    try {
+      if (isSignIn) {
+        // ── Login ──────────────────────────────────────────────
+        const data = await loginUser({ email, password })
+        login(data.token, data.user)
+        navigate('/create')
+      } else {
+        // ── Sign Up ────────────────────────────────────────────
+        const dobString = `${dob.year}-${String(dob.month).padStart(2, '0')}-${String(dob.day).padStart(2, '0')}`
+        // Signup returns the created user; then auto-login
+        await signupUser({ email, dob: dobString, username, password })
+        // After signup, log them in immediately
+        const data = await loginUser({ email, password })
+        login(data.token, data.user)
+        navigate('/create')
+      }
+    } catch (err) {
+      setError(err.message || 'Something went wrong. Please try again.')
+    } finally {
       setLoading(false)
-      navigate('/create')
-    }, 1500)
+    }
   }
 
   return (
@@ -266,6 +287,12 @@ export default function AuthPanel({ authMode, setAuthMode }) {
             </button>
           </div>
         </div>
+        {/* Error message */}
+        {error && (
+          <div className="rounded-xl bg-red-900/30 border border-red-700/40 px-4 py-3 text-sm text-red-300 font-sans-ui">
+            {error}
+          </div>
+        )}
 
         {/* Submit */}
         <button
@@ -279,7 +306,9 @@ export default function AuthPanel({ authMode, setAuthMode }) {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
           ) : null}
-          {isSignIn ? 'Sign In to Inkspace' : 'Create Free Account'}
+          {loading
+            ? (isSignIn ? 'Signing in…' : 'Creating account…')
+            : (isSignIn ? 'Sign In to Inkspace' : 'Create Free Account')}
         </button>
       </form>
 
