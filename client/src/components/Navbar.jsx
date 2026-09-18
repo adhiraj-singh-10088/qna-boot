@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const NAV_LINKS = [
   { label: 'Features', href: '#features' },
@@ -11,6 +12,7 @@ const SECTION_IDS = ['features', 'categories', 'about']
 
 export default function Navbar({ authMode, setAuthMode }) {
   const navigate = useNavigate()
+  const { isAuthenticated, user, logout } = useAuth()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('')
@@ -107,22 +109,44 @@ export default function Navbar({ authMode, setAuthMode }) {
 
         {/* Auth Buttons */}
         <div className="hidden md:flex items-center gap-3">
-          <button
-            onClick={() => setAuthMode('signin')}
-            className={`font-sans-ui text-sm px-5 py-2 rounded-full border transition-all duration-200 ${
-              authMode === 'signin'
-                ? 'bg-[#c9a84c] text-[#0e0e0e] border-[#c9a84c] font-semibold'
-                : 'border-[#3a3329] text-[#a09880] hover:border-[#c9a84c] hover:text-[#c9a84c]'
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            onClick={() => navigate('/create')}
-            className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#c9a84c] bg-[#c9a84c] text-[#0e0e0e] font-semibold hover:bg-[#e2c97e] transition-all duration-200"
-          >
-            Start Writing
-          </button>
+          {isAuthenticated ? (
+            <>
+              <span className="font-sans-ui text-sm text-[#c9a84c] font-medium">
+                @{user?.username}
+              </span>
+              <button
+                onClick={() => navigate('/create')}
+                className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#c9a84c] bg-[#c9a84c] text-[#0e0e0e] font-semibold hover:bg-[#e2c97e] transition-all duration-200"
+              >
+                Write
+              </button>
+              <button
+                onClick={() => { logout(); navigate('/') }}
+                className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#3a3329] text-[#a09880] hover:border-[#c9a84c] hover:text-[#c9a84c] transition-all duration-200"
+              >
+                Log Out
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setAuthMode('signin')}
+                className={`font-sans-ui text-sm px-5 py-2 rounded-full border transition-all duration-200 ${
+                  authMode === 'signin'
+                    ? 'bg-[#c9a84c] text-[#0e0e0e] border-[#c9a84c] font-semibold'
+                    : 'border-[#3a3329] text-[#a09880] hover:border-[#c9a84c] hover:text-[#c9a84c]'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => setAuthMode('signup')}
+                className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#c9a84c] bg-[#c9a84c] text-[#0e0e0e] font-semibold hover:bg-[#e2c97e] transition-all duration-200"
+              >
+                Start Writing
+              </button>
+            </>
+          )}
         </div>
 
         {/* Mobile Hamburger */}
@@ -164,18 +188,40 @@ export default function Navbar({ authMode, setAuthMode }) {
             )
           })}
           <div className="flex gap-3 pt-3 border-t border-[#2a2520]">
-            <button
-              onClick={() => { setAuthMode('signin'); setMenuOpen(false) }}
-              className="font-sans-ui text-sm px-4 py-2 rounded-full border border-[#c9a84c] text-[#c9a84c]"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => { navigate('/create'); setMenuOpen(false) }}
-              className="font-sans-ui text-sm px-4 py-2 rounded-full bg-[#c9a84c] text-[#0e0e0e] font-semibold"
-            >
-              Start Writing
-            </button>
+            {isAuthenticated ? (
+              <>
+                <span className="font-sans-ui text-sm text-[#c9a84c] font-medium self-center">
+                  @{user?.username}
+                </span>
+                <button
+                  onClick={() => { navigate('/create'); setMenuOpen(false) }}
+                  className="font-sans-ui text-sm px-4 py-2 rounded-full bg-[#c9a84c] text-[#0e0e0e] font-semibold"
+                >
+                  Write
+                </button>
+                <button
+                  onClick={() => { logout(); navigate('/'); setMenuOpen(false) }}
+                  className="font-sans-ui text-sm px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880]"
+                >
+                  Log Out
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => { setAuthMode('signin'); setMenuOpen(false) }}
+                  className="font-sans-ui text-sm px-4 py-2 rounded-full border border-[#c9a84c] text-[#c9a84c]"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => { setAuthMode('signup'); setMenuOpen(false) }}
+                  className="font-sans-ui text-sm px-4 py-2 rounded-full bg-[#c9a84c] text-[#0e0e0e] font-semibold"
+                >
+                  Start Writing
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
