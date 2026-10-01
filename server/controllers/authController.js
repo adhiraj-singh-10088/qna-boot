@@ -6,6 +6,7 @@ import pool from "../utils/db.js";
 dotenv.config();
 
 export async function signup(req, res) {
+  // Validates the registration details, hashes the password, and creates a user record.
   const { email, dob, username, password } = req.body;
   if (!email || !dob || !username || !password) {
     return res.status(400).json({ error: "Missing required fields" });
@@ -32,6 +33,7 @@ export async function signup(req, res) {
 }
 
 export async function login(req, res) {
+  // Verifies the user's credentials and returns a signed JWT for authenticated requests.
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: "Missing email or password" });
