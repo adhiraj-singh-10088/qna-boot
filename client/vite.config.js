@@ -9,8 +9,8 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/auth': 'http://localhost:4000',
-      '/api': 'http://localhost:4000',
+      '/auth': 'http://localhost:3001',
+      '/api': 'http://localhost:3001',
     },
   },
 })

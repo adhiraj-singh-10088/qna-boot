@@ -29,7 +29,19 @@ function EyeIcon({ open }) {
   )
 }
 
-export default function AuthPanel({ authMode, setAuthMode }) {
+/**
+ * <AuthPanel />
+ *
+ * Props:
+ *  authMode    — 'signin' | 'signup'   controlled from parent
+ *  setAuthMode — setter from parent (pass null/undefined to lock mode)
+ *  lockedMode  — if true, hides the tab switcher (used on /login page)
+ *
+ * Flow:
+ *  Signup  → calls signupUser → on success navigates to /login with success banner
+ *  Sign In → calls loginUser  → on success navigates to /feed
+ */
+export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, justRegistered = false }) {
   const navigate = useNavigate()
   const { login } = useAuth()
   const [email, setEmail] = useState('')
@@ -40,28 +52,27 @@ export default function AuthPanel({ authMode, setAuthMode }) {
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
 
   const isSignIn = authMode === 'signin'
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccessMsg('')
     setLoading(true)
     try {
       if (isSignIn) {
-        // ── Login ──────────────────────────────────────────────
+        // ── Login → go straight to Feed ────────────────────────────
         const data = await loginUser({ email, password })
         login(data.token, data.user)
-        navigate('/create')
+        navigate('/feed')                        // ← redirect to feed after login
       } else {
-        // ── Sign Up ────────────────────────────────────────────
+        // ── Sign Up → redirect to /login with a success message ─────
         const dobString = `${dob.year}-${String(dob.month).padStart(2, '0')}-${String(dob.day).padStart(2, '0')}`
-        // Signup returns the created user; then auto-login
         await signupUser({ email, dob: dobString, username, password })
-        // After signup, log them in immediately
-        const data = await loginUser({ email, password })
-        login(data.token, data.user)
-        navigate('/create')
+        // Do NOT auto-login. Send user to login page with a prompt.
+        navigate('/login?registered=1')          // ← after signup, go to login
       }
     } catch (err) {
       setError(err.message || 'Something went wrong. Please try again.')
@@ -72,51 +83,68 @@ export default function AuthPanel({ authMode, setAuthMode }) {
 
   return (
     <div className="w-full max-w-[420px] bg-[#141210] border border-[#2a2520] rounded-2xl p-8 shadow-2xl shadow-black/60">
-      {/* Tab switcher */}
-      <div className="flex gap-1 bg-[#1a1814] rounded-xl p-1 mb-8">
-        {['signin', 'signup'].map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setAuthMode(mode)}
-            className={`flex-1 font-sans-ui text-sm py-2.5 rounded-lg transition-all duration-200 ${
-              authMode === mode
-                ? 'bg-[#c9a84c] text-[#0e0e0e] font-semibold shadow-sm'
-                : 'text-[#7a7060] hover:text-[#a09880]'
-            }`}
-          >
-            {mode === 'signin' ? 'Sign In' : 'Create Account'}
-          </button>
-        ))}
-      </div>
 
-      {/* Heading */}
+      {/* ── Tab switcher — hidden when mode is locked (e.g. /login page) ── */}
+      {!lockedMode && (
+        <div className="flex gap-1 bg-[#1a1814] rounded-xl p-1 mb-8">
+          {['signin', 'signup'].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setAuthMode(mode)}
+              className={`flex-1 font-sans-ui text-sm py-2.5 rounded-lg transition-all duration-200 ${
+                authMode === mode
+                  ? 'bg-[#c9a84c] text-[#0e0e0e] font-semibold shadow-sm'
+                  : 'text-[#7a7060] hover:text-[#a09880]'
+              }`}
+            >
+              {mode === 'signin' ? 'Sign In' : 'Create Account'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Heading ────────────────────────────────────────────────────── */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-[#f5e6c8] mb-1">
-          {isSignIn ? 'Welcome back.' : 'Join Inkspace.'}
+          {isSignIn 
+            ? (justRegistered ? 'Sign in' : 'Welcome back.') 
+            : 'Join Inkspace.'}
         </h2>
         <p className="font-sans-ui text-sm text-[#5a5248]">
           {isSignIn
-            ? 'Sign in to continue to your Inkspace.'
+            ? (justRegistered ? 'Enter your details to access your new account.' : 'Sign in to continue to your feed.')
             : 'Create an account and start writing today.'}
         </p>
       </div>
 
-      {/* Google OAuth */}
+      {/* ── Success banner (shown after redirect from signup) ──────────── */}
+      {successMsg && (
+        <div className="mb-5 rounded-xl bg-emerald-900/30 border border-emerald-700/40
+                        px-4 py-3 text-sm text-emerald-300 font-sans-ui flex items-center gap-2">
+          <svg viewBox="0 0 20 20" className="w-4 h-4 flex-shrink-0" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd"/>
+          </svg>
+          {successMsg}
+        </div>
+      )}
+
+      {/* ── Google OAuth ───────────────────────────────────────────────── */}
       <button className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-[#1e1c18] border border-[#2e2a24] text-[#c8bea8] font-sans-ui text-sm hover:border-[#4a4438] hover:bg-[#242018] transition-all duration-200 mb-5">
         <GoogleIcon />
         Continue with Google
       </button>
 
-      {/* Divider */}
+      {/* ── Divider ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-4 mb-5">
         <div className="flex-1 h-px bg-[#2a2520]" />
         <span className="font-sans-ui text-xs text-[#4a4438]">or continue with email</span>
         <div className="flex-1 h-px bg-[#2a2520]" />
       </div>
 
-      {/* Form */}
+      {/* ── Form ───────────────────────────────────────────────────────── */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Name field (signup only) */}
+
+        {/* Full Name (signup only) */}
         {!isSignIn && (
           <div>
             <label className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase block mb-2">
@@ -133,7 +161,7 @@ export default function AuthPanel({ authMode, setAuthMode }) {
           </div>
         )}
 
-        {/* Username field (signup only) */}
+        {/* Username (signup only) */}
         {!isSignIn && (
           <div>
             <label className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase block mb-2">
@@ -153,83 +181,51 @@ export default function AuthPanel({ authMode, setAuthMode }) {
           </div>
         )}
 
-        {/* Date of Birth field (signup only) */}
+        {/* Date of Birth (signup only) */}
         {!isSignIn && (() => {
-          // Compute real max days for the chosen month/year
-          // new Date(y, m, 0).getDate() → last day of month m in year y
-          const refYear  = dob.year  ? Number(dob.year)  : 2000   // 2000 = leap year fallback
+          const refYear  = dob.year  ? Number(dob.year)  : 2000
           const refMonth = dob.month ? Number(dob.month) : 0
           const maxDays  = refMonth ? new Date(refYear, refMonth, 0).getDate() : 31
 
           const handleMonth = (e) => {
             const newMonth = e.target.value
             const newMax   = new Date(refYear, Number(newMonth), 0).getDate()
-            setDob(p => ({
-              ...p,
-              month: newMonth,
-              day: p.day && Number(p.day) > newMax ? '' : p.day,
-            }))
+            setDob(p => ({ ...p, month: newMonth, day: p.day && Number(p.day) > newMax ? '' : p.day }))
           }
           const handleYear = (e) => {
             const newYear = e.target.value
             const newMax  = refMonth ? new Date(Number(newYear), refMonth, 0).getDate() : 31
-            setDob(p => ({
-              ...p,
-              year: newYear,
-              day: p.day && Number(p.day) > newMax ? '' : p.day,
-            }))
+            setDob(p => ({ ...p, year: newYear, day: p.day && Number(p.day) > newMax ? '' : p.day }))
           }
 
           return (
             <div>
               <label className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase flex items-center gap-1.5 mb-2">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
                 Date of Birth
               </label>
               <div className="flex gap-2">
-                {/* Day — only shows valid days for the chosen month/year */}
-                <select
-                  value={dob.day}
-                  onChange={(e) => setDob(p => ({ ...p, day: e.target.value }))}
-                  required={!isSignIn}
+                <select value={dob.day} onChange={(e) => setDob(p => ({ ...p, day: e.target.value }))} required={!isSignIn}
                   style={{ color: dob.day ? '#e8e0d4' : '#3a3329' }}
-                  className="flex-1 bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer"
-                >
+                  className="flex-1 bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer">
                   <option value="" disabled style={{ color: '#3a3329' }}>DD</option>
                   {Array.from({ length: maxDays }, (_, i) => i + 1).map(d => (
-                    <option key={d} value={d} style={{ color: '#e8e0d4', background: '#1a1814' }}>
-                      {String(d).padStart(2, '0')}
-                    </option>
+                    <option key={d} value={d} style={{ color: '#e8e0d4', background: '#1a1814' }}>{String(d).padStart(2, '0')}</option>
                   ))}
                 </select>
-
-                {/* Month */}
-                <select
-                  value={dob.month}
-                  onChange={handleMonth}
-                  required={!isSignIn}
+                <select value={dob.month} onChange={handleMonth} required={!isSignIn}
                   style={{ color: dob.month ? '#e8e0d4' : '#3a3329' }}
-                  className="flex-[1.4] bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer"
-                >
+                  className="flex-[1.4] bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer">
                   <option value="" disabled style={{ color: '#3a3329' }}>Month</option>
                   {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
                     <option key={m} value={i + 1} style={{ color: '#e8e0d4', background: '#1a1814' }}>{m}</option>
                   ))}
                 </select>
-
-                {/* Year */}
-                <select
-                  value={dob.year}
-                  onChange={handleYear}
-                  required={!isSignIn}
+                <select value={dob.year} onChange={handleYear} required={!isSignIn}
                   style={{ color: dob.year ? '#e8e0d4' : '#3a3329' }}
-                  className="flex-[1.2] bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer"
-                >
+                  className="flex-[1.2] bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer">
                   <option value="" disabled style={{ color: '#3a3329' }}>YYYY</option>
                   {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map(y => (
                     <option key={y} value={y} style={{ color: '#e8e0d4', background: '#1a1814' }}>{y}</option>
@@ -239,7 +235,6 @@ export default function AuthPanel({ authMode, setAuthMode }) {
             </div>
           )
         })()}
-
 
         {/* Email */}
         <div>
@@ -287,7 +282,8 @@ export default function AuthPanel({ authMode, setAuthMode }) {
             </button>
           </div>
         </div>
-        {/* Error message */}
+
+        {/* Error */}
         {error && (
           <div className="rounded-xl bg-red-900/30 border border-red-700/40 px-4 py-3 text-sm text-red-300 font-sans-ui">
             {error}
@@ -300,34 +296,55 @@ export default function AuthPanel({ authMode, setAuthMode }) {
           disabled={loading}
           className="w-full mt-2 bg-[#c9a84c] hover:bg-[#e2c97e] active:bg-[#b8943e] text-[#0e0e0e] font-sans-ui font-semibold text-sm py-3.5 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {loading ? (
+          {loading && (
             <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-          ) : null}
+          )}
           {loading
             ? (isSignIn ? 'Signing in…' : 'Creating account…')
             : (isSignIn ? 'Sign In to Inkspace' : 'Create Free Account')}
         </button>
       </form>
 
-      {/* Footer link */}
-      <p className="font-sans-ui text-xs text-center text-[#4a4438] mt-5">
-        {isSignIn ? (
-          <>New to Inkspace?{' '}
-            <button onClick={() => setAuthMode('signup')} className="text-[#c9a84c] hover:text-[#e2c97e] font-medium transition-colors">
-              Create a free account
-            </button>
-          </>
-        ) : (
-          <>Already have an account?{' '}
-            <button onClick={() => setAuthMode('signin')} className="text-[#c9a84c] hover:text-[#e2c97e] font-medium transition-colors">
-              Sign in
-            </button>
-          </>
-        )}
-      </p>
+      {/* ── Footer switch link ──────────────────────────────────────────── */}
+      {!lockedMode && (
+        <p className="font-sans-ui text-xs text-center text-[#4a4438] mt-5">
+          {isSignIn ? (
+            <>New to Inkspace?{' '}
+              <button onClick={() => setAuthMode('signup')} className="text-[#c9a84c] hover:text-[#e2c97e] font-medium transition-colors">
+                Create a free account
+              </button>
+            </>
+          ) : (
+            <>Already have an account?{' '}
+              <button onClick={() => setAuthMode('signin')} className="text-[#c9a84c] hover:text-[#e2c97e] font-medium transition-colors">
+                Sign in
+              </button>
+            </>
+          )}
+        </p>
+      )}
+
+      {lockedMode && (
+        <p className="font-sans-ui text-xs text-center text-[#4a4438] mt-5">
+          Don't have an account?{' '}
+          <a href="/" className="text-[#c9a84c] hover:text-[#e2c97e] font-medium transition-colors">
+            Create one free
+          </a>
+        </p>
+      )}
+
+      {/* Guest Mode Link */}
+      <div className="mt-6 pt-5 border-t border-[#2a2520] text-center">
+        <button
+          onClick={() => navigate('/feed')}
+          className="font-sans-ui text-xs text-[#7a7060] hover:text-[#e8e0d4] transition-colors"
+        >
+          Explore as Guest &rarr;
+        </button>
+      </div>
     </div>
   )
 }

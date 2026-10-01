@@ -66,46 +66,41 @@ export default function Navbar({ authMode, setAuthMode }) {
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <a href="/" className="flex items-center gap-2.5 group flex-shrink-0">
+        {/* Logo — points to /feed if logged in, / if not */}
+        <a
+          href={isAuthenticated ? '/feed' : '/'}
+          className="flex items-center gap-2.5 group flex-shrink-0"
+        >
           <div className="w-8 h-8 border border-[#c9a84c] rounded flex items-center justify-center group-hover:bg-[#c9a84c]/10 transition-colors">
             <svg width="16" height="18" viewBox="0 0 16 18" fill="none">
-              <path
-                d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z"
-                stroke="#c9a84c"
-                strokeWidth="1.2"
-                fill="none"
-              />
-              <path d="M8 6V12M6 8l2-2 2 2" stroke="#c9a84c" strokeWidth="1.2" strokeLinecap="round" />
+              <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="#c9a84c" strokeWidth="1.2" fill="none"/>
+              <path d="M8 6V12M6 8l2-2 2 2" stroke="#c9a84c" strokeWidth="1.2" strokeLinecap="round"/>
             </svg>
           </div>
           <span className="text-xl font-bold tracking-wide text-[#f5e6c8]">Inkspace</span>
         </a>
 
-        {/* Desktop Nav Links */}
-        <nav className="hidden md:flex items-center gap-6">
-          {NAV_LINKS.map((link) => {
-            const sectionId = link.href.replace('#', '')
-            const isActive = activeSection === sectionId
-            return (
-              <a
-                key={link.label}
-                href={link.href}
-                className={`font-sans-ui text-sm tracking-wide transition-colors duration-200 relative group ${
-                  isActive ? 'text-[#c9a84c]' : 'text-[#a09880] hover:text-[#e8e0d4]'
-                }`}
-              >
-                {link.label}
-                {/* Active indicator dot */}
-                <span
-                  className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#c9a84c] transition-all duration-200 ${
-                    isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
+        {/* Desktop Nav Links — only show section anchors for guests */}
+        {!isAuthenticated && (
+          <nav className="hidden md:flex items-center gap-6">
+            {NAV_LINKS.map((link) => {
+              const sectionId = link.href.replace('#', '')
+              const isActive = activeSection === sectionId
+              return (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className={`font-sans-ui text-sm tracking-wide transition-colors duration-200 relative group ${
+                    isActive ? 'text-[#c9a84c]' : 'text-[#a09880] hover:text-[#e8e0d4]'
                   }`}
-                />
-              </a>
-            )
-          })}
-        </nav>
+                >
+                  {link.label}
+                  <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#c9a84c] transition-all duration-200 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`}/>
+                </a>
+              )
+            })}
+          </nav>
+        )}
 
         {/* Auth Buttons */}
         <div className="hidden md:flex items-center gap-3">
@@ -114,6 +109,12 @@ export default function Navbar({ authMode, setAuthMode }) {
               <span className="font-sans-ui text-sm text-[#c9a84c] font-medium">
                 @{user?.username}
               </span>
+              <button
+                onClick={() => navigate('/feed')}
+                className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#c9a84c] text-[#c9a84c] hover:bg-[#c9a84c]/10 transition-all duration-200"
+              >
+                My Feed
+              </button>
               <button
                 onClick={() => navigate('/create')}
                 className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#c9a84c] bg-[#c9a84c] text-[#0e0e0e] font-semibold hover:bg-[#e2c97e] transition-all duration-200"
@@ -171,7 +172,8 @@ export default function Navbar({ authMode, setAuthMode }) {
         } bg-[#0e0e0e]/98 backdrop-blur-md`}
       >
         <div className="px-6 py-5 flex flex-col gap-4">
-          {NAV_LINKS.map((link) => {
+          {/* Section links — guests only */}
+          {!isAuthenticated && NAV_LINKS.map((link) => {
             const sectionId = link.href.replace('#', '')
             const isActive = activeSection === sectionId
             return (
@@ -187,17 +189,30 @@ export default function Navbar({ authMode, setAuthMode }) {
               </a>
             )
           })}
-          <div className="flex gap-3 pt-3 border-t border-[#2a2520]">
+
+          <div className="flex flex-wrap gap-3 pt-3 border-t border-[#2a2520]">
             {isAuthenticated ? (
               <>
-                <span className="font-sans-ui text-sm text-[#c9a84c] font-medium self-center">
+                <span className="font-sans-ui text-sm text-[#c9a84c] font-medium self-center w-full">
                   @{user?.username}
                 </span>
+                <button
+                  onClick={() => { navigate('/feed'); setMenuOpen(false) }}
+                  className="font-sans-ui text-sm px-4 py-2 rounded-full border border-[#c9a84c] text-[#c9a84c]"
+                >
+                  My Feed
+                </button>
                 <button
                   onClick={() => { navigate('/create'); setMenuOpen(false) }}
                   className="font-sans-ui text-sm px-4 py-2 rounded-full bg-[#c9a84c] text-[#0e0e0e] font-semibold"
                 >
                   Write
+                </button>
+                <button
+                  onClick={() => { navigate('/profile'); setMenuOpen(false) }}
+                  className="font-sans-ui text-sm px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880] hover:border-[#c9a84c] hover:text-[#c9a84c]"
+                >
+                  Profile
                 </button>
                 <button
                   onClick={() => { logout(); navigate('/'); setMenuOpen(false) }}

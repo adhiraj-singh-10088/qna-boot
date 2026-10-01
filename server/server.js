@@ -19,7 +19,7 @@ app.get("/", (req, res) => res.send("Hey Chat"));
 
 app.use("/auth", authRouter);
 
-const PORT = process.env.PORT || 3036;
+const PORT = process.env.PORT || 3001;
 // app.get('/check-db', async (req, res) => {
 //   try {
 //     // Re-use whatever database pool import Adhiraj created (e.g., db or pool)

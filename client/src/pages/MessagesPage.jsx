@@ -1,0 +1,236 @@
+import { useEffect, useMemo, useRef, useState } from "react"
+import AppLayout from "../components/layout/AppLayout"
+import { useMessages } from "../context/MessagesContext"
+
+function formatTime(iso) {
+  const date = new Date(iso)
+  const diff = Date.now() - date.getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return "now"
+  if (mins < 60) return `${mins}m`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d`
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
+
+function lastMessage(conv) {
+  return conv.messages[conv.messages.length - 1]
+}
+
+export default function MessagesPage() {
+  const { conversations, markRead, sendMessage } = useMessages()
+  const [activeId, setActiveId] = useState(null)
+  const [draft, setDraft] = useState("")
+  const threadEndRef = useRef(null)
+
+  const sorted = useMemo(() => {
+    return [...conversations].sort((a, b) => {
+      const aAt = lastMessage(a)?.at || 0
+      const bAt = lastMessage(b)?.at || 0
+      return new Date(bAt) - new Date(aAt)
+    })
+  }, [conversations])
+
+  const active = sorted.find((conv) => conv.id === activeId) || null
+
+  useEffect(() => {
+    if (activeId) markRead(activeId)
+  }, [activeId, markRead])
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [active?.messages.length, activeId])
+
+  function openThread(id) {
+    setActiveId(id)
+    setDraft("")
+  }
+
+  function handleSend(event) {
+    event.preventDefault()
+    if (!activeId || !draft.trim()) return
+    sendMessage(activeId, draft)
+    setDraft("")
+  }
+
+  if (sorted.length === 0) {
+    return (
+      <AppLayout>
+        <div className="flex flex-col items-center justify-center min-h-[70vh] px-6 text-center">
+          <span className="w-16 h-16 rounded-2xl border border-[#2a2a2a] flex items-center justify-center text-[#c9a84c] mb-6">
+            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.6}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7A2.5 2.5 0 0117.5 16H9l-5 4V6.5z" />
+            </svg>
+          </span>
+          <h1
+            className="text-2xl font-semibold text-[#e8e0d4] mb-3"
+            style={{ fontFamily: "'Georgia', serif" }}
+          >
+            No messages yet
+          </h1>
+          <p className="text-[#7a7060] text-[15px] leading-relaxed max-w-sm font-sans-ui">
+            When a friend sends you something, it will show up here.
+          </p>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  return (
+    <AppLayout wide>
+      <div className="h-[calc(100dvh-5.5rem)] md:h-[calc(100vh-3rem)] flex rounded-none md:rounded-2xl overflow-hidden border-y md:border border-[#1f1f1f] bg-[#111111]">
+
+        {/* Conversation list */}
+        <aside
+          className={`${active ? "hidden md:flex" : "flex"} w-full md:w-72 xl:w-80 flex-col border-r border-[#1f1f1f] bg-[#0e0e0e]`}
+        >
+          <header className="px-5 py-4 border-b border-[#1f1f1f]">
+            <h1
+              className="text-[#e8e0d4] text-xl font-bold"
+              style={{ fontFamily: "'Georgia', serif" }}
+            >
+              Messages
+            </h1>
+            <p className="text-[#7a7060] text-xs font-sans-ui mt-0.5">
+              Notes from writers you follow
+            </p>
+          </header>
+
+          <ul className="flex-1 overflow-y-auto scrollbar-thin">
+            {sorted.map((conv) => {
+              const last = lastMessage(conv)
+              const isActive = conv.id === activeId
+              return (
+                <li key={conv.id}>
+                  <button
+                    type="button"
+                    onClick={() => openThread(conv.id)}
+                    className={`w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors duration-200
+                      ${isActive ? "bg-[#1f1c16]" : "hover:bg-[#161616]"}`}
+                  >
+                    <span className="w-11 h-11 rounded-full bg-[#2a2a2a] flex-shrink-0 flex items-center justify-center text-[#c9a84c] font-bold ring-1 ring-[#3a3329]">
+                      {conv.peer.name.charAt(0)}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="flex items-center justify-between gap-2">
+                        <span className={`text-sm font-sans-ui truncate ${conv.unread ? "text-[#e8e0d4] font-semibold" : "text-[#e8e0d4]"}`}>
+                          {conv.peer.name}
+                        </span>
+                        <span className="text-[11px] text-[#7a7060] font-sans-ui flex-shrink-0">
+                          {last ? formatTime(last.at) : ""}
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-xs font-sans-ui truncate ${conv.unread ? "text-[#c9a84c]" : "text-[#7a7060]"}`}>
+                          {last?.from === "me" ? "You: " : ""}
+                          {last?.text}
+                        </span>
+                        {conv.unread > 0 && (
+                          <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-[#c9a84c] text-[#0e0e0e] text-[10px] font-bold flex items-center justify-center">
+                            {conv.unread}
+                          </span>
+                        )}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </aside>
+
+        {/* Thread */}
+        <section className={`${active ? "flex" : "hidden md:flex"} flex-1 flex-col min-w-0 bg-[#111111]`}>
+          {!active ? (
+            <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
+              <span className="w-14 h-14 rounded-2xl border border-[#2a2a2a] flex items-center justify-center text-[#c9a84c] mb-4">
+                <svg viewBox="0 0 24 24" className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7A2.5 2.5 0 0117.5 16H9l-5 4V6.5z" />
+                </svg>
+              </span>
+              <p className="text-[#e8e0d4] font-medium font-sans-ui">Your inbox</p>
+              <p className="text-[#7a7060] text-sm font-sans-ui mt-1 max-w-xs">
+                Open a conversation to read what a friend sent you, then reply from here.
+              </p>
+            </div>
+          ) : (
+            <>
+              <header className="flex items-center gap-3 px-4 py-3 border-b border-[#1f1f1f]">
+                <button
+                  type="button"
+                  className="md:hidden text-[#7a7060] hover:text-[#e8e0d4] p-1"
+                  onClick={() => setActiveId(null)}
+                  aria-label="Back to conversations"
+                >
+                  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <span className="w-9 h-9 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[#c9a84c] font-bold text-sm ring-1 ring-[#3a3329]">
+                  {active.peer.name.charAt(0)}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[#e8e0d4] text-sm font-semibold font-sans-ui truncate">
+                    {active.peer.name}
+                  </p>
+                  <p className="text-[#7a7060] text-xs font-sans-ui">@{active.peer.username}</p>
+                </div>
+              </header>
+
+              <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 space-y-3">
+                {active.messages.map((msg) => {
+                  const mine = msg.from === "me"
+                  return (
+                    <div key={msg.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 ${
+                          mine
+                            ? "bg-[#c9a84c] text-[#0e0e0e] rounded-br-md"
+                            : "bg-[#1a1a1a] text-[#e8e0d4] border border-[#2a2a2a] rounded-bl-md"
+                        }`}
+                      >
+                        <p className="text-sm font-sans-ui leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        <p className={`text-[10px] mt-1 font-sans-ui ${mine ? "text-[#0e0e0e]/60" : "text-[#7a7060]"}`}>
+                          {formatTime(msg.at)}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+                <div ref={threadEndRef} />
+              </div>
+
+              <form onSubmit={handleSend} className="p-3 border-t border-[#1f1f1f] flex items-end gap-2">
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSend(e)
+                    }
+                  }}
+                  rows={1}
+                  placeholder={`Message ${active.peer.name.split(" ")[0]}…`}
+                  className="flex-1 resize-none rounded-xl bg-[#161616] border border-[#2a2a2a]
+                             px-3 py-2.5 text-sm font-sans-ui text-[#e8e0d4] placeholder:text-[#5c564c]
+                             focus:outline-none focus:border-[#c9a84c]/50 max-h-32"
+                />
+                <button
+                  type="submit"
+                  disabled={!draft.trim()}
+                  className="px-4 py-2.5 rounded-xl bg-[#c9a84c] text-[#0e0e0e] text-sm font-semibold font-sans-ui
+                             disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition-all"
+                >
+                  Send
+                </button>
+              </form>
+            </>
+          )}
+        </section>
+      </div>
+    </AppLayout>
+  )
+}

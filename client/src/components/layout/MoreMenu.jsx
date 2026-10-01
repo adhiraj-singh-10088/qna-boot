@@ -1,0 +1,251 @@
+import { useEffect, useRef, useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { useAuth } from "../../context/AuthContext"
+
+const SETTINGS_KEY = "inkspace_settings"
+
+function loadSettings() {
+  try {
+    const stored = localStorage.getItem(SETTINGS_KEY)
+    if (stored) return { notifications: true, activityStatus: true, ...JSON.parse(stored) }
+  } catch {
+    /* ignore */
+  }
+  return { notifications: true, activityStatus: true }
+}
+
+function IconSettings() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <circle cx="12" cy="12" r="3" />
+      <path strokeLinecap="round" d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 01-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 01-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 012.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 012.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z" />
+    </svg>
+  )
+}
+
+function IconBookmark() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 4h12v16l-6-3.5L6 20V4z" />
+    </svg>
+  )
+}
+
+function IconActivity() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12h3l2-6 4 12 2-6h5" />
+    </svg>
+  )
+}
+
+function IconLogout() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v8a2 2 0 002 2h4M15 12H8m7 0l3-3m-3 3l3 3" />
+    </svg>
+  )
+}
+
+function Toggle({ on, onToggle, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      onClick={onToggle}
+      className="w-full flex items-center justify-between gap-4 py-3 text-left"
+    >
+      <span className="text-sm font-sans-ui text-[#e8e0d4]">{label}</span>
+      <span className={`relative w-10 h-6 rounded-full transition-colors duration-200 ${on ? "bg-[#c9a84c]" : "bg-[#2a2a2a]"}`}>
+        <span className={`absolute top-1 w-4 h-4 rounded-full bg-[#0e0e0e] transition-transform duration-200 ${on ? "translate-x-5" : "translate-x-1"}`} />
+      </span>
+    </button>
+  )
+}
+
+export default function MoreMenu() {
+  const navigate = useNavigate()
+  const { logout, isAuthenticated } = useAuth()
+  const [open, setOpen] = useState(false)
+  const [view, setView] = useState("menu")
+  const [settings, setSettings] = useState(loadSettings)
+  const rootRef = useRef(null)
+
+  useEffect(() => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+  }, [settings])
+
+  useEffect(() => {
+    if (!open) return
+    function onPointer(event) {
+      if (!rootRef.current?.contains(event.target)) {
+        setOpen(false)
+        setView("menu")
+      }
+    }
+    function onKey(event) {
+      if (event.key === "Escape") {
+        setOpen(false)
+        setView("menu")
+      }
+    }
+    document.addEventListener("mousedown", onPointer)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onPointer)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open])
+
+  function handleLogout() {
+    logout()
+    setOpen(false)
+    navigate("/login")
+  }
+
+  const itemClass =
+    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-sans-ui text-[#e8e0d4] hover:bg-[#1a1a1a] transition-colors text-left"
+
+  return (
+    <div ref={rootRef} className="relative mt-auto">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((prev) => !prev)
+          setView("menu")
+        }}
+        className={`flex items-center gap-4 px-3 py-3 rounded-xl w-full
+                    transition-all duration-200
+                    ${open ? "bg-[#1f1c16] text-[#c9a84c]" : "text-[#7a7060] hover:bg-[#161616] hover:text-[#e8e0d4]"}`}
+        aria-label="More options"
+        aria-expanded={open}
+      >
+        <svg viewBox="0 0 24 24" className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+        <span className="hidden xl:block text-[15px] font-medium">More</span>
+      </button>
+
+      {open && (
+        <div
+          className="absolute bottom-14 left-0 z-50 w-[min(100vw-2rem,280px)]
+                     bg-[#161616] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden"
+        >
+          {view === "menu" && (
+            <div className="p-2">
+              <button type="button" className={itemClass} onClick={() => setView("settings")}>
+                <IconSettings />
+                Settings
+              </button>
+              {isAuthenticated ? (
+                <>
+                  <button
+                    type="button"
+                    className={itemClass}
+                    onClick={() => {
+                      setOpen(false)
+                      navigate("/profile?tab=Bookmarks")
+                    }}
+                  >
+                    <IconBookmark />
+                    Saved
+                  </button>
+                  <button type="button" className={itemClass} onClick={() => setView("activity")}>
+                    <IconActivity />
+                    Your activity
+                  </button>
+                  <div className="my-1 h-px bg-[#2a2a2a]" />
+                  <button
+                    type="button"
+                    className={`${itemClass} text-red-400 hover:text-red-300`}
+                    onClick={handleLogout}
+                  >
+                    <IconLogout />
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="my-1 h-px bg-[#2a2a2a]" />
+                  <button
+                    type="button"
+                    className={itemClass}
+                    onClick={() => { setOpen(false); navigate("/login") }}
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" />
+                    </svg>
+                    Log in
+                  </button>
+                  <button
+                    type="button"
+                    className={itemClass}
+                    onClick={() => { setOpen(false); navigate("/") }}
+                  >
+                    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M8 7a4 4 0 100-8 4 4 0 000 8zM20 8v6M23 11h-6" />
+                    </svg>
+                    Create Account
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {view === "settings" && (
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setView("menu")}
+                  className="text-[#7a7060] hover:text-[#e8e0d4] p-1"
+                  aria-label="Back"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <h2 className="text-sm font-semibold font-sans-ui text-[#e8e0d4]">Settings</h2>
+              </div>
+              <Toggle
+                label="Notifications"
+                on={settings.notifications}
+                onToggle={() => setSettings((s) => ({ ...s, notifications: !s.notifications }))}
+              />
+              <Toggle
+                label="Show activity status"
+                on={settings.activityStatus}
+                onToggle={() => setSettings((s) => ({ ...s, activityStatus: !s.activityStatus }))}
+              />
+              <p className="text-[11px] text-[#7a7060] font-sans-ui mt-2">
+                Saved on this device. Syncing comes with the backend later.
+              </p>
+            </div>
+          )}
+
+          {view === "activity" && (
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <button
+                  type="button"
+                  onClick={() => setView("menu")}
+                  className="text-[#7a7060] hover:text-[#e8e0d4] p-1"
+                  aria-label="Back"
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <h2 className="text-sm font-semibold font-sans-ui text-[#e8e0d4]">Your activity</h2>
+              </div>
+              <p className="text-sm text-[#7a7060] font-sans-ui leading-relaxed">
+                Likes, comments, and profile visits will appear here once the backend is connected.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

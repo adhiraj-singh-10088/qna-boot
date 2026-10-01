@@ -32,7 +32,16 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  const value = { token, user, login, logout, isAuthenticated: !!token };
+  /** Merge profile fields locally (frontend-only until the API is wired) */
+  function updateUser(patch) {
+    setUser((prev) => {
+      const next = { ...(prev || {}), ...patch };
+      localStorage.setItem(USER_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
+
+  const value = { token, user, login, logout, updateUser, isAuthenticated: !!token };
 
   return (
     <AuthContext.Provider value={value}>

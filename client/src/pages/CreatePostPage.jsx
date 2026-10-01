@@ -1,5 +1,6 @@
-﻿import React, { useState, useRef } from "react"
+import React, { useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
+import AppLayout from "../components/layout/AppLayout"
 
 /* ── Icons ───────────────────────────────────────────── */
 function BoldIcon()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg> }
@@ -115,52 +116,31 @@ export default function CreatePostPage() {
   const readTime = Math.max(1, Math.ceil(wordCount / 200))
 
   return (
-    <div className="min-h-screen bg-[#0e0e0e] text-[#e8e0d4]">
-
-      {/* ── Top bar ─────────────────────────────────────────── */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-[#161410] border-b border-[#2e2a24]">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
-
-          {/* Left: back + brand */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate("/")}
-              className="flex items-center gap-2 text-[#7a7060] hover:text-[#c9a84c] transition-colors text-sm font-sans-ui"
-            >
-              <ArrowLeft /> Back
-            </button>
-            <div className="w-px h-5 bg-[#2e2a24]" />
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 border border-[#c9a84c] rounded flex items-center justify-center">
-                <svg width="12" height="13" viewBox="0 0 16 18" fill="none">
-                  <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="#c9a84c" strokeWidth="1.2" fill="none"/>
-                  <path d="M8 6V12M6 8l2-2 2 2" stroke="#c9a84c" strokeWidth="1.2" strokeLinecap="round"/>
-                </svg>
-              </div>
-              <span className="text-sm font-bold text-[#f5e6c8] tracking-wide">Inkspace</span>
-            </div>
-          </div>
-
-          {/* Right: status + actions */}
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:block font-sans-ui text-xs text-[#4a4438]">
+    <AppLayout>
+      <div className="max-w-3xl mx-auto pb-12 relative">
+        <header className="sticky top-0 z-40 bg-[#0e0e0e]/95 backdrop-blur-md border-b border-[#2a2520] pb-4 pt-4 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-[#e8e0d4] text-2xl font-bold" style={{ fontFamily: "'Georgia', serif" }}>
+              Write an Article
+            </h1>
+            <p className="font-sans-ui text-xs text-[#7a7060] mt-1">
               {wordCount} words · {readTime} min read
-            </span>
-
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-3">
             {saved && (
               <span className="font-sans-ui text-xs text-green-500 flex items-center gap-1">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                 Saved
               </span>
             )}
-
             <button
               onClick={saveDraft}
               className="flex items-center gap-2 font-sans-ui text-sm px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880] hover:border-[#c9a84c]/60 hover:text-[#c9a84c] transition-all duration-200"
             >
-              <SaveIcon /> Save Draft
+              <SaveIcon /> <span className="hidden sm:inline">Save Draft</span>
             </button>
-
             <button
               onClick={() => setPreview(!preview)}
               className={`flex items-center gap-2 font-sans-ui text-sm px-4 py-2 rounded-full border transition-all duration-200 ${
@@ -169,9 +149,8 @@ export default function CreatePostPage() {
                   : "border-[#3a3329] text-[#a09880] hover:border-[#c9a84c]/60 hover:text-[#c9a84c]"
               }`}
             >
-              <EyeIcon /> {preview ? "Edit" : "Preview"}
+              <EyeIcon /> <span className="hidden sm:inline">{preview ? "Edit" : "Preview"}</span>
             </button>
-
             <button
               onClick={handlePublish}
               disabled={!title.trim() || publishing}
@@ -186,11 +165,7 @@ export default function CreatePostPage() {
               Publish
             </button>
           </div>
-        </div>
-      </header>
-
-      {/* ── Main ────────────────────────────────────────────── */}
-      <main className="max-w-3xl mx-auto px-6 pt-24 pb-32">
+        </header>
 
         {preview ? (
           /* ── PREVIEW MODE ─────────────────────────────────── */
@@ -356,23 +331,7 @@ export default function CreatePostPage() {
 
           </div>
         )}
-      </main>
-
-      {/* ── Mobile bottom bar ──────────────────────────────── */}
-      <div className="fixed bottom-0 inset-x-0 bg-[#161410] border-t border-[#2e2a24] px-6 py-4 flex items-center justify-between gap-4 md:hidden z-50">
-        <div>
-          <p className="font-sans-ui text-xs text-[#5a5248]">{wordCount} words · {readTime} min read</p>
-          {title && <p className="text-sm font-semibold text-[#e8e0d4] truncate max-w-[180px] mt-0.5">{title}</p>}
-        </div>
-        <button
-          onClick={handlePublish}
-          disabled={!title.trim() || publishing}
-          className="font-sans-ui text-sm px-6 py-3 rounded-full bg-[#c9a84c] hover:bg-[#e2c97e] text-[#0e0e0e] font-semibold transition-all disabled:opacity-50"
-        >
-          Publish
-        </button>
       </div>
-
-    </div>
+    </AppLayout>
   )
 }
