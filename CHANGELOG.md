@@ -17,7 +17,7 @@ Every change made through Hermes also updates `AGENTS.md` in the same change set
 
 ## Entries (newest first)
 
-### 2026-10-05 — Security phase: XSS sanitization, rate limiting, secret hygiene, httpOnly-cookie sessions   [Hermes agent session]
+### 2026-10-05 — Security phase: XSS sanitization, rate limiting, secret hygiene, httpOnly-cookie sessions   [Hermes agent session · git: 35d56a6]
 - **XSS sanitization (stored-XSS surface closed):** post content is sanitized server-side with `sanitize-html` on write (`postController` create/update) and on read (`utils/posts.js` mapPost — covers legacy rows); allow-list keeps the editor's own markup (headings, bold/italic, lists, blockquote, pre, http/https links + images) and strips scripts, iframes, event handlers, `style=`, and `javascript:` URLs. Comments were already rendered as text (safe).
 - **Rate limiting:** `express-rate-limit` — auth (login/signup) counts **failed** attempts only: 30 per 15 min per IP (429 + JSON error); global `/api` limiter 1000 per 15 min. Env-overridable (`RATE_LIMIT_AUTH_MAX`, `RATE_LIMIT_API_MAX`).
 - **Session → httpOnly cookie:** login sets an httpOnly, SameSite=Lax `inkspace_token` cookie (Secure when `NODE_ENV=production`); `authMiddleware` reads cookie first, Bearer second (scripts/API clients unchanged); `POST /auth/logout` clears it; the SPA no longer stores the JWT in localStorage (keeps user only; hydrates session from the cookie on boot via `/auth/me`).
