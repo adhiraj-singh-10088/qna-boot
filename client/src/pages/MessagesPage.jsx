@@ -38,6 +38,7 @@ export default function MessagesPage() {
   const [activeId, setActiveId] = useState(null)
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
+  const [search, setSearch] = useState("")
   const threadEndRef = useRef(null)
 
   const sorted = useMemo(() => {
@@ -47,6 +48,21 @@ export default function MessagesPage() {
       return new Date(bAt) - new Date(aAt)
     })
   }, [conversations])
+
+  /* Search box filter: peer name, @username, or the last message text */
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return sorted
+    return sorted.filter((conv) => {
+      const peer = conv.peer || {}
+      const last = lastMessage(conv)
+      return (
+        (peer.name || "").toLowerCase().includes(q) ||
+        (peer.username || "").toLowerCase().includes(q) ||
+        (last?.text || "").toLowerCase().includes(q)
+      )
+    })
+  }, [sorted, search])
 
   const active = sorted.find((conv) => conv.id === activeId) || null
 
@@ -126,8 +142,43 @@ export default function MessagesPage() {
             </p>
           </header>
 
+          {/* Conversation search */}
+          <div className="px-4 pt-3 pb-1">
+            <div className="flex items-center gap-2 px-3 py-2 bg-[#161616] border border-[#2a2a2a] rounded-xl focus-within:border-[#c9a84c33] transition-colors duration-200">
+              <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#7a7060] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="11" cy="11" r="7" />
+                <path strokeLinecap="round" d="M16.5 16.5L21 21" />
+              </svg>
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('messages.searchPlaceholder')}
+                aria-label={t('messages.searchPlaceholder')}
+                className="flex-1 bg-transparent text-[#e8e0d4] text-sm placeholder:text-[#5c564c] outline-none font-sans-ui"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="text-[#7a7060] hover:text-[#e8e0d4] transition-colors"
+                  aria-label={t('messages.clearSearch')}
+                >
+                  <svg viewBox="0 0 20 20" className="w-4 h-4" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <p className="px-5 py-8 text-sm text-[#7a7060] font-sans-ui text-center">
+              {t('messages.noResults')}
+            </p>
+          ) : (
           <ul className="flex-1 overflow-y-auto scrollbar-thin">
-            {sorted.map((conv) => {
+            {filtered.map((conv) => {
               const last = lastMessage(conv)
               const isActive = conv.id === activeId
               return (
@@ -165,6 +216,7 @@ export default function MessagesPage() {
               )
             })}
           </ul>
+          )}
         </aside>
 
         {/* Thread */}

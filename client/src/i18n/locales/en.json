@@ -245,6 +245,9 @@
   "messages": {
     "title": "Messages",
     "subtitle": "Notes from writers you follow",
+    "searchPlaceholder": "Search conversations",
+    "noResults": "No conversations match your search",
+    "clearSearch": "Clear search",
     "emptyTitle": "No messages yet",
     "emptyText": "Share a story with someone you follow — open any post and press Share to send it to them.",
     "inboxTitle": "Your inbox",

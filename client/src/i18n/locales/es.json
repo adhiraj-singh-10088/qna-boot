@@ -245,6 +245,9 @@
   "messages": {
     "title": "Mensajes",
     "subtitle": "Notas de los escritores que sigues",
+    "searchPlaceholder": "Buscar conversaciones",
+    "noResults": "Ninguna conversación coincide con tu búsqueda",
+    "clearSearch": "Borrar búsqueda",
     "emptyTitle": "Aún no hay mensajes",
     "emptyText": "Comparte una historia con alguien que sigas — abre cualquier publicación y pulsa Compartir.",
     "inboxTitle": "Tu bandeja",
