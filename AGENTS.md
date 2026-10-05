@@ -38,18 +38,19 @@
 
 ### server/ — Express 5 (ESM), entry point `server/server.js`
 - ⚠️ `server/app.js` is an **empty file** — the app is created and listens in `server/server.js`. Default port fallback **3001** (was 3036); `server/.env` sets `PORT=3001`.
-- `routes/auth.js` → `POST /auth/signup` (accepts `full_name`), `POST /auth/login`, `GET /auth/me` (fresh profile from DB). bcryptjs cost 10; JWT signed with `JWT_SECRET`, `JWT_EXPIRES_IN` default `1h`.
+- `routes/auth.js` → `POST /auth/signup` (accepts `full_name`), `POST /auth/login` (sets the httpOnly session cookie), `POST /auth/logout` (clears it), `GET /auth/me` (fresh profile from DB). bcryptjs cost 10; JWT signed with `JWT_SECRET`, `JWT_EXPIRES_IN` default `1h`.
 - **API surface (all implemented in the 2026-10-05 batch):**
   - Feed: `GET /api/feed?limit&offset` (public; `optionalAuth` adds viewer flags).
   - Posts @ `/api/posts`: `GET /` (list), `POST /` (auth), `GET/PUT/DELETE /:id`, `POST/DELETE /:id/like`, `POST/DELETE /:id/bookmark`, `GET/POST /:id/comments`; `DELETE /api/comments/:id`; `GET /api/bookmarks`.
   - Users @ `/api/users`: `GET /search?q=`, `PATCH /me`, `GET /:username`, `GET /:username/posts` (private → `{ locked: true }` for non-followers), `/:username/followers`, `/:username/following`, `POST/DELETE /:username/follow`.
   - Follow requests @ `/api/follow-requests`: `GET /`, `POST /:id/accept`, `DELETE /:id`.
   - Notifications @ `/api/notifications`: `GET /`, `GET /unread-count`, `PATCH /:id/read`, `POST /read-all`.
-- `middlewares/authMiddleware.js` — default export = strict Bearer JWT (401 otherwise); named export `optionalAuth` attaches `req.user` when present, never rejects. `JWT_SECRET` fallback `"change-me"`.
-- `utils/posts.js` — shared post SELECT + mapper (`viewerId` drives `isLiked`/`isSaved`, `stripHtml` builds excerpts). `utils/notify.js` — `notify(userId, actorId, type, {postId, commentId})`; skips self-notifications; likes only notify on fresh inserts (INSERT IGNORE affectedRows check).
+- `middlewares/authMiddleware.js` — default export = strict auth (401 otherwise); token read from the httpOnly `inkspace_token` cookie first, Bearer header second (API clients/scripts). Named export `optionalAuth` attaches `req.user` when present, never rejects. `JWT_SECRET` fallback `"change-me"` (real value lives in `server/.env`).
+- `utils/posts.js` — shared post SELECT + mapper (`viewerId` drives `isLiked`/`isSaved`, `stripHtml` builds excerpts, content sanitized on read). `utils/notify.js` — `notify(userId, actorId, type, {postId, commentId})`; skips self-notifications; likes only notify on fresh inserts (INSERT IGNORE affectedRows check).
+- `utils/sanitize.js` — `sanitizePostHtml()` allow-list sanitizer (used on write in `postController` + on read in `utils/posts.js`). `utils/authCookie.js` — `TOKEN_COOKIE` name + cookie options/JWT-expiry parsing for the session cookie.
 - `scripts/migrate.js` — **idempotent schema sync**: adds `users.full_name` / `bio` / `is_private`; creates `posts` / `likes` / `comments` / `bookmarks` / `follows` / `notifications`. Re-run after pulling.
 - `utils/db.js` — `mysql2/promise` pool → **TiDB Cloud** (MySQL-compatible; env-driven via `.env`). Pool sets `timezone: 'Z'` — DATETIME/TIMESTAMP values are read as UTC (do not remove: without it relative times read 5h30m early on IST machines). Note: TiDB does not enforce FKs — referential integrity is app-level (post deletion cascades run in a transaction).
-- Unused deps in `server/package.json`: `pg`, `cookie-parser`.
+- `cookie-parser` is now used (session cookies); unused dep left: `pg`. Security deps: `helmet`, `express-rate-limit` (auth: 30 failed/15 min, API: 1000/15 min — env-overridable via `RATE_LIMIT_AUTH_MAX`/`RATE_LIMIT_API_MAX`), `sanitize-html`.
 
 ### Root
 - `README.md` — run instructions (partially stale: says port 3036).
