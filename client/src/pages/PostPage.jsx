@@ -190,6 +190,12 @@ export default function PostPage() {
         </Link>
 
         <article>
+          {post.isDraft && (
+            <span className="inline-block font-sans-ui text-[10px] px-2 py-0.5 rounded-full bg-[#2a2218] border border-[#3a3020] text-[#c9a84c] uppercase tracking-wider mb-4">
+              {t('profile.draft')}
+            </span>
+          )}
+
           {post.category && (
             <p className="font-sans-ui text-xs tracking-[0.2em] text-[#c9a84c] uppercase mb-4">
               {post.category}
@@ -205,6 +211,14 @@ export default function PostPage() {
 
           {post.subtitle && (
             <p className="text-lg text-[#7a7060] mb-6 leading-relaxed">{post.subtitle}</p>
+          )}
+
+          {post.coverUrl && (
+            <img
+              src={post.coverUrl}
+              alt={post.title}
+              className="w-full h-72 object-cover rounded-2xl mb-8"
+            />
           )}
 
           {/* Author row */}

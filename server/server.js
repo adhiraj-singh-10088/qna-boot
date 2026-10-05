@@ -7,6 +7,8 @@ import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import authRouter from "./routes/auth.js";
 import postsRouter from "./routes/posts.js";
+import uploadsRouter, { UPLOADS_DIR } from "./routes/uploads.js";
+import messagesRouter from "./routes/messages.js";
 import feedRouter from "./routes/feed.js";
 import commentsRouter from "./routes/comments.js";
 import bookmarksRouter from "./routes/bookmarks.js";
@@ -55,7 +57,11 @@ app.use("/api", apiLimiter);
 
 app.get("/", (req, res) => res.send("Hey Chat"));
 
+/* Uploaded images (post covers / avatars) served straight from disk */
+app.use("/uploads", express.static(UPLOADS_DIR, { maxAge: "7d", immutable: true }));
+
 app.use("/auth", authRouter);
+app.use("/api/uploads", uploadsRouter);
 app.use("/api/feed", feedRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/comments", commentsRouter);
@@ -63,6 +69,7 @@ app.use("/api/bookmarks", bookmarksRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/follow-requests", followRequestsRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/messages", messagesRouter);
 
 const PORT = process.env.PORT || 3001;
 // app.get('/check-db', async (req, res) => {

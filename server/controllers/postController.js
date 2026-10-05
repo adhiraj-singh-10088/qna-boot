@@ -55,18 +55,29 @@ export async function listFeed(req, res) {
   }
 }
 
+/* Cover images: only internal /uploads paths or http(s) URLs are stored. */
+function cleanCoverUrl(value) {
+  if (typeof value !== "string") return null;
+  const v = value.trim().slice(0, 500);
+  if (!v) return null;
+  if (!/^\/uploads\/[A-Za-z0-9._-]+$/.test(v) && !/^https?:\/\//i.test(v)) return null;
+  return v;
+}
+
 export async function createPost(req, res) {
   // Validates post data, associates it with the authenticated user, and stores it.
   const { title, content, subtitle, category, tags } = req.body || {};
   const cleanTitle = cleanStr(title, 255);
   const cleanContent = typeof content === "string" ? sanitizePostHtml(content) : "";
-  if (!cleanTitle || !stripHtml(cleanContent)) {
+  const coverUrl = cleanCoverUrl(req.body?.cover_url);
+  const status = req.body?.draft === true || req.body?.status === "draft" ? "draft" : "published";
+  if (!cleanTitle || (status !== "draft" && !stripHtml(cleanContent))) {
     return res.status(400).json({ error: "Title and content are required" });
   }
 
   try {
     const [result] = await pool.execute(
-      "INSERT INTO posts (author_id, title, subtitle, content, category, tags) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO posts (author_id, title, subtitle, content, category, tags, cover_url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
       [
         req.user.id,
         cleanTitle,
@@ -74,6 +85,8 @@ export async function createPost(req, res) {
         cleanContent,
         cleanStr(category, 50) || null,
         tagsToJson(parseTags(tags)),
+        coverUrl,
+        status,
       ],
     );
 
@@ -102,7 +115,9 @@ export async function updatePost(req, res) {
   const { title, content, subtitle, category, tags } = req.body || {};
   const cleanTitle = cleanStr(title, 255);
   const cleanContent = typeof content === "string" ? sanitizePostHtml(content) : "";
-  if (!cleanTitle || !stripHtml(cleanContent)) {
+  const hasCover = Object.prototype.hasOwnProperty.call(req.body || {}, "cover_url");
+  const statusIntent = req.body?.status === "draft" ? "draft" : req.body?.status === "published" ? "published" : undefined;
+  if (!cleanTitle || (statusIntent !== "draft" && !stripHtml(cleanContent))) {
     return res.status(400).json({ error: "Title and content are required" });
   }
 
@@ -113,14 +128,18 @@ export async function updatePost(req, res) {
       return res.status(403).json({ error: "Only the author can edit this post" });
     }
 
+    const nextCover = hasCover ? cleanCoverUrl(req.body?.cover_url) : existing.cover_url;
+    const nextStatus = statusIntent || existing.status || "published";
     await pool.execute(
-      "UPDATE posts SET title = ?, subtitle = ?, content = ?, category = ?, tags = ?, edited = 1 WHERE id = ?",
+      "UPDATE posts SET title = ?, subtitle = ?, content = ?, category = ?, tags = ?, cover_url = ?, status = ?, edited = 1 WHERE id = ?",
       [
         cleanTitle,
         cleanStr(subtitle, 500) || null,
         cleanContent,
         cleanStr(category, 50) || null,
         tagsToJson(parseTags(tags)),
+        nextCover,
+        nextStatus,
         existing.id,
       ],
     );

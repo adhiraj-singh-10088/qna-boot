@@ -19,6 +19,7 @@ function mapSummary(row) {
     id: row.uid,
     username: row.username,
     name: row.full_name || row.username,
+    avatarUrl: row.avatar_url || null,
     bio: row.bio || "",
     isPrivate: Boolean(row.is_private),
     followerCount: Number(row.follower_count ?? 0),
@@ -43,7 +44,7 @@ export async function searchUsers(req, res) {
     const limit = q ? 30 : 20;
 
     const sql = `
-      SELECT u.uid, u.username, u.full_name, u.bio, u.is_private, u.created_at,
+      SELECT u.uid, u.username, u.full_name, u.avatar_url, u.bio, u.is_private, u.created_at,
         EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followee_id = u.uid AND f.status = 'accepted') AS is_following,
         EXISTS(SELECT 1 FROM follows f2 WHERE f2.follower_id = u.uid AND f2.followee_id = ? AND f2.status = 'accepted') AS follows_you,
         EXISTS(SELECT 1 FROM follows f3 WHERE f3.follower_id = ? AND f3.followee_id = u.uid AND f3.status = 'pending') AS pending_request,
@@ -71,7 +72,7 @@ export async function getUserProfile(req, res) {
   try {
     const viewerId = req.user?.id || 0;
     const [rows] = await pool.execute(
-      `SELECT u.uid, u.username, u.full_name, u.bio, u.is_private, u.created_at,
+      `SELECT u.uid, u.username, u.full_name, u.avatar_url, u.bio, u.is_private, u.created_at,
          (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.uid) AS post_count,
          (SELECT COUNT(*) FROM follows f WHERE f.followee_id = u.uid AND f.status = 'accepted') AS follower_count,
          (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = u.uid AND f2.status = 'accepted') AS following_count
@@ -104,6 +105,7 @@ export async function getUserProfile(req, res) {
         id: row.uid,
         username: row.username,
         name: row.full_name || row.username,
+        avatarUrl: row.avatar_url || null,
         bio: row.bio || "",
         isPrivate: Boolean(row.is_private),
         createdAt: row.created_at,
@@ -153,6 +155,7 @@ export async function getUserPosts(req, res) {
       where: "WHERE p.author_id = ?",
       params: [user.uid],
       limit: 30,
+      includeDrafts: Boolean(isSelf),
     });
     return res.json({ posts, locked: false });
   } catch (err) {
@@ -171,7 +174,7 @@ async function listRelations(req, res, direction) {
     const filterColumn = direction === "followers" ? "f.followee_id" : "f.follower_id";
 
     const [rows] = await pool.execute(
-      `SELECT u.uid, u.username, u.full_name, u.bio, u.is_private,
+      `SELECT u.uid, u.username, u.full_name, u.avatar_url, u.bio, u.is_private,
          EXISTS(SELECT 1 FROM follows fx WHERE fx.follower_id = ? AND fx.followee_id = u.uid AND fx.status = 'accepted') AS is_following
        FROM follows f
        JOIN users u ON u.uid = ${joinColumn}
@@ -199,7 +202,7 @@ export async function getFollowing(req, res) {
 export async function updateMe(req, res) {
   // Updates the authenticated user's profile. Turns public → auto-accepts
   // any pending follow requests and notifies those followers.
-  const { full_name, bio, username, is_private } = req.body || {};
+  const { full_name, bio, username, is_private, avatar_url } = req.body || {};
   const updates = [];
   const params = [];
 
@@ -225,6 +228,13 @@ export async function updateMe(req, res) {
       if (taken[0]) return res.status(409).json({ error: "Username is already taken" });
       updates.push("username = ?");
       params.push(clean);
+    }
+
+    if (avatar_url !== undefined) {
+      const clean = typeof avatar_url === "string" ? avatar_url.trim().slice(0, 500) : "";
+      const valid = clean && (/^\/uploads\/[A-Za-z0-9._-]+$/.test(clean) || /^https?:\/\//i.test(clean));
+      updates.push("avatar_url = ?");
+      params.push(valid ? clean : null);
     }
 
     if (is_private !== undefined) {
@@ -257,7 +267,7 @@ export async function updateMe(req, res) {
     }
 
     const [rows] = await pool.execute(
-      "SELECT uid AS id, email, username, full_name, bio, is_private FROM users WHERE uid = ? LIMIT 1",
+      "SELECT uid AS id, email, username, full_name, bio, is_private, avatar_url FROM users WHERE uid = ? LIMIT 1",
       [req.user.id],
     );
     const user = rows[0];
@@ -270,6 +280,7 @@ export async function updateMe(req, res) {
         full_name: user.full_name || null,
         bio: user.bio || null,
         is_private: Boolean(user.is_private),
+        avatar_url: user.avatar_url || null,
       },
     });
   } catch (err) {

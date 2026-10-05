@@ -28,15 +28,25 @@ function StatPill({ value, label, onClick }) {
 /* ── Grid card ──────────────────────────────────────────────────────── */
 function GridCard({ post }) {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   return (
     <article
-      onClick={() => navigate(`/post/${post.id}`)}
+      onClick={() => navigate(post.isDraft ? `/create?edit=${post.id}` : `/post/${post.id}`)}
       className="group relative bg-[#161616] rounded-xl overflow-hidden
                  border border-[#1f1f1f] hover:border-[#c9a84c30]
                  transition-all duration-300 cursor-pointer"
     >
-      <div className="aspect-square overflow-hidden bg-[#1a1a1a] flex items-center justify-center">
-        <span className="text-[#3a3329] text-4xl">✍</span>
+      <div className="aspect-square overflow-hidden bg-[#1a1a1a] relative flex items-center justify-center">
+        {post.coverUrl ? (
+          <img src={post.coverUrl} alt={post.title} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-[#3a3329] text-4xl">✍</span>
+        )}
+        {post.isDraft && (
+          <span className="absolute top-2 left-2 font-sans-ui text-[10px] px-2 py-0.5 rounded-full bg-black/70 border border-[#3a3020] text-[#c9a84c] uppercase tracking-wider">
+            {t('profile.draft')}
+          </span>
+        )}
       </div>
       <div className="p-3">
         <p className="text-[#e8e0d4] text-xs font-medium font-sans-ui line-clamp-2 leading-snug">
@@ -240,14 +250,22 @@ export default function ProfilePage() {
       <header className="mb-8">
         <div className="flex items-start gap-6 mb-5">
           <div className="flex-shrink-0">
-            <span
-              className="w-20 h-20 rounded-full bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a]
-                         flex items-center justify-center text-3xl font-bold text-[#c9a84c]
-                         ring-2 ring-[#c9a84c40]"
-              style={{ fontFamily: "'Georgia', serif" }}
-            >
-              {(profile.name || profile.username || "?").charAt(0).toUpperCase()}
-            </span>
+            {profile.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={profile.name}
+                className="w-20 h-20 rounded-full object-cover ring-2 ring-[#c9a84c40]"
+              />
+            ) : (
+              <span
+                className="w-20 h-20 rounded-full bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a]
+                           flex items-center justify-center text-3xl font-bold text-[#c9a84c]
+                           ring-2 ring-[#c9a84c40]"
+                style={{ fontFamily: "'Georgia', serif" }}
+              >
+                {(profile.name || profile.username || "?").charAt(0).toUpperCase()}
+              </span>
+            )}
           </div>
 
           <div className="flex-1 flex items-center justify-around pt-2">

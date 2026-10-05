@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { Link } from "react-router-dom"
 import AppLayout from "../components/layout/AppLayout"
 import { useMessages } from "../context/MessagesContext"
 
@@ -16,13 +17,25 @@ function formatTime(iso) {
 }
 
 function lastMessage(conv) {
-  return conv.messages[conv.messages.length - 1]
+  return conv.lastMessage || (conv.messages && conv.messages[conv.messages.length - 1]) || null
+}
+
+function Avatar({ peer, size = "w-11 h-11", text = "text-base" }) {
+  if (peer?.avatarUrl) {
+    return <img src={peer.avatarUrl} alt={peer.name} className={`${size} rounded-full object-cover flex-shrink-0 ring-1 ring-[#3a3329]`} />
+  }
+  return (
+    <span className={`${size} rounded-full bg-[#2a2a2a] flex-shrink-0 flex items-center justify-center text-[#c9a84c] font-bold ring-1 ring-[#3a3329] ${text}`}>
+      {(peer?.name || "?").charAt(0)}
+    </span>
+  )
 }
 
 export default function MessagesPage() {
-  const { conversations, markRead, sendMessage } = useMessages()
+  const { conversations, loadThread, markRead, sendMessage } = useMessages()
   const [activeId, setActiveId] = useState(null)
   const [draft, setDraft] = useState("")
+  const [sending, setSending] = useState(false)
   const threadEndRef = useRef(null)
 
   const sorted = useMemo(() => {
@@ -36,8 +49,10 @@ export default function MessagesPage() {
   const active = sorted.find((conv) => conv.id === activeId) || null
 
   useEffect(() => {
-    if (activeId) markRead(activeId)
-  }, [activeId, markRead])
+    if (!activeId) return
+    markRead(activeId)
+    loadThread(activeId).catch(() => { /* keep the list usable on failure */ })
+  }, [activeId, loadThread, markRead])
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -48,11 +63,20 @@ export default function MessagesPage() {
     setDraft("")
   }
 
-  function handleSend(event) {
+  async function handleSend(event) {
     event.preventDefault()
-    if (!activeId || !draft.trim()) return
-    sendMessage(activeId, draft)
+    if (!activeId || !draft.trim() || sending) return
+    const text = draft
     setDraft("")
+    setSending(true)
+    try {
+      await sendMessage(activeId, text)
+    } catch (err) {
+      window.alert(err.message || "Could not send the message.")
+      setDraft(text)
+    } finally {
+      setSending(false)
+    }
   }
 
   if (sorted.length === 0) {
@@ -71,7 +95,7 @@ export default function MessagesPage() {
             No messages yet
           </h1>
           <p className="text-[#7a7060] text-[15px] leading-relaxed max-w-sm font-sans-ui">
-            When a friend sends you something, it will show up here.
+            Share a story with someone you follow — open any post and press Share to send it to them.
           </p>
         </div>
       </AppLayout>
@@ -110,9 +134,7 @@ export default function MessagesPage() {
                     className={`w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors duration-200
                       ${isActive ? "bg-[#1f1c16]" : "hover:bg-[#161616]"}`}
                   >
-                    <span className="w-11 h-11 rounded-full bg-[#2a2a2a] flex-shrink-0 flex items-center justify-center text-[#c9a84c] font-bold ring-1 ring-[#3a3329]">
-                      {conv.peer.name.charAt(0)}
-                    </span>
+                    <Avatar peer={conv.peer} />
                     <span className="flex-1 min-w-0">
                       <span className="flex items-center justify-between gap-2">
                         <span className={`text-sm font-sans-ui truncate ${conv.unread ? "text-[#e8e0d4] font-semibold" : "text-[#e8e0d4]"}`}>
@@ -168,9 +190,7 @@ export default function MessagesPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <span className="w-9 h-9 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[#c9a84c] font-bold text-sm ring-1 ring-[#3a3329]">
-                  {active.peer.name.charAt(0)}
-                </span>
+                <Avatar peer={active.peer} size="w-9 h-9" text="text-sm" />
                 <div className="min-w-0">
                   <p className="text-[#e8e0d4] text-sm font-semibold font-sans-ui truncate">
                     {active.peer.name}
@@ -192,6 +212,14 @@ export default function MessagesPage() {
                         }`}
                       >
                         <p className="text-sm font-sans-ui leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        {msg.postId && (
+                          <Link
+                            to={`/post/${msg.postId}`}
+                            className={`inline-flex items-center gap-1 text-xs font-sans-ui mt-1.5 underline underline-offset-2 ${mine ? "text-[#0e0e0e]/80 hover:text-[#0e0e0e]" : "text-[#c9a84c] hover:text-[#e2c97e]"}`}
+                          >
+                            Open shared story →
+                          </Link>
+                        )}
                         <p className={`text-[10px] mt-1 font-sans-ui ${mine ? "text-[#0e0e0e]/60" : "text-[#7a7060]"}`}>
                           {formatTime(msg.at)}
                         </p>
@@ -220,7 +248,7 @@ export default function MessagesPage() {
                 />
                 <button
                   type="submit"
-                  disabled={!draft.trim()}
+                  disabled={!draft.trim() || sending}
                   className="px-4 py-2.5 rounded-xl bg-[#c9a84c] text-[#0e0e0e] text-sm font-semibold font-sans-ui
                              disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition-all"
                 >

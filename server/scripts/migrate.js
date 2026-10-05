@@ -79,6 +79,17 @@ const TABLES = {
     INDEX idx_notifications_user (user_id, is_read),
     INDEX idx_notifications_recent (user_id, created_at)
   )`,
+  messages: `CREATE TABLE IF NOT EXISTS messages (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT NOT NULL,
+    recipient_id INT NOT NULL,
+    post_id INT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    read_at TIMESTAMP NULL,
+    INDEX idx_messages_pair (sender_id, recipient_id),
+    INDEX idx_messages_recipient (recipient_id, read_at)
+  )`,
 };
 
 async function main() {
@@ -87,6 +98,10 @@ async function main() {
   await addColumn('users', 'full_name', 'VARCHAR(100) NULL');
   await addColumn('users', 'bio', 'VARCHAR(500) NULL');
   await addColumn('users', 'is_private', 'TINYINT(1) NOT NULL DEFAULT 0');
+  await addColumn('users', 'avatar_url', 'VARCHAR(500) NULL');
+  console.log('posts table columns:');
+  await addColumn('posts', 'cover_url', 'VARCHAR(500) NULL');
+  await addColumn('posts', 'status', "VARCHAR(20) NOT NULL DEFAULT 'published'");
   console.log('tables:');
   for (const [name, ddl] of Object.entries(TABLES)) {
     await pool.query(ddl);

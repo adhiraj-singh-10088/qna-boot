@@ -14,6 +14,7 @@ function publicUser(row) {
     full_name: row.full_name || null,
     bio: row.bio || null,
     is_private: Boolean(row.is_private),
+    avatar_url: row.avatar_url || null,
   };
 }
 
@@ -58,7 +59,7 @@ export async function login(req, res) {
 
   try {
     const [rows] = await pool.execute(
-      "SELECT uid AS id, email, username, password, dob, full_name, bio, is_private, created_at FROM users WHERE email = ? LIMIT 1",
+      "SELECT uid AS id, email, username, password, dob, full_name, bio, is_private, avatar_url, created_at FROM users WHERE email = ? LIMIT 1",
       [email],
     );
     const user = rows && rows[0];
@@ -106,7 +107,7 @@ export async function getMe(req, res) {
   // Returns the authenticated user's fresh profile straight from the database.
   try {
     const [rows] = await pool.execute(
-      "SELECT uid AS id, email, username, dob, full_name, bio, is_private, created_at FROM users WHERE uid = ? LIMIT 1",
+      "SELECT uid AS id, email, username, dob, full_name, bio, is_private, avatar_url, created_at FROM users WHERE uid = ? LIMIT 1",
       [req.user.id],
     );
     const user = rows && rows[0];

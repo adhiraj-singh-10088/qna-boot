@@ -1,33 +1,28 @@
 import { useState, useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
-
-/* ── Mock contacts for demo — replace with API call ─────────────────── */
-const DEMO_CONTACTS = [
-  { id: 1, name: "Priya Mehta",    username: "priyawrites",  avatar: null, mutualFollowers: 4  },
-  { id: 2, name: "Arjun Das",      username: "arjun.das",    avatar: null, mutualFollowers: 12 },
-  { id: 3, name: "Sofia Laurent",  username: "sofialaurent", avatar: null, mutualFollowers: 2  },
-  { id: 4, name: "Yusuf Oladapo",  username: "yusuf_ink",    avatar: null, mutualFollowers: 7  },
-  { id: 5, name: "Celine Dubois",  username: "celine.reads", avatar: null, mutualFollowers: 1  },
-  { id: 6, name: "Rohan Kapoor",   username: "rohanwrites",  avatar: null, mutualFollowers: 9  },
-]
+import { useAuth } from "../../context/AuthContext"
+import { fetchFollowing } from "../../api/users"
+import { sendMessage } from "../../api/messages"
 
 /**
  * <ShareModal />
- * Modal overlay for sharing an article with followers/connections.
+ * Modal overlay for sharing an article: copy the permalink, use the native
+ * share sheet, or send it to someone you follow (real message, shows up in
+ * their Messages inbox with a link back to the story).
  *
  * Props:
  *  isOpen:  boolean  — controls visibility
  *  onClose: () => void
- *  article: { title }  — article being shared (used for preview)
- *
- * TODO:
- *  - Replace DEMO_CONTACTS with GET /api/users/following
- *  - Wire "Send" button to POST /api/messages or POST /api/shares
+ *  article: { id, title }  — article being shared
  */
 export default function ShareModal({ isOpen, onClose, article }) {
   const { t } = useTranslation()
+  const { user, isAuthenticated } = useAuth()
   const [query,   setQuery]   = useState("")
+  const [contacts, setContacts] = useState([])
+  const [sending, setSending] = useState({})   // { [userId]: true }
   const [sent,    setSent]    = useState({})   // { [userId]: true }
+  const [error,   setError]   = useState("")
   const [copied,  setCopied]  = useState(false)
   const searchRef             = useRef(null)
 
@@ -36,15 +31,37 @@ export default function ShareModal({ isOpen, onClose, article }) {
     ? `${window.location.origin}/post/${article.id}`
     : window.location.href
 
-  /* Focus search input when modal opens */
+  /* Reset transient state when the modal opens */
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => searchRef.current?.focus(), 80)
       setQuery("")
       setSent({})
+      setSending({})
+      setError("")
       setCopied(false)
     }
   }, [isOpen])
+
+  /* Load the people the viewer follows (the Send targets) */
+  useEffect(() => {
+    if (!isOpen || !isAuthenticated || !user?.username) return undefined
+    let cancelled = false
+    fetchFollowing(user.username)
+      .then((res) => {
+        if (cancelled) return
+        setContacts(
+          (res?.users || []).map((u) => ({
+            id: u.id,
+            name: u.name || u.username,
+            username: u.username,
+            avatarUrl: u.avatarUrl || null,
+          })),
+        )
+      })
+      .catch(() => { if (!cancelled) setContacts([]) })
+    return () => { cancelled = true }
+  }, [isOpen, isAuthenticated, user?.username])
 
   /* Close on Escape key */
   useEffect(() => {
@@ -56,15 +73,28 @@ export default function ShareModal({ isOpen, onClose, article }) {
   if (!isOpen) return null
 
   /* Filter contacts by search query */
-  const filtered = DEMO_CONTACTS.filter(
+  const filtered = contacts.filter(
     (c) =>
       c.name.toLowerCase().includes(query.toLowerCase()) ||
       c.username.toLowerCase().includes(query.toLowerCase())
   )
 
-  const handleSend = (userId) => {
-    // TODO: POST /api/shares { articleId: article.id, recipientId: userId }
-    setSent((prev) => ({ ...prev, [userId]: true }))
+  /* Send the story to a contact as a real message */
+  const handleSend = async (contact) => {
+    if (sending[contact.id] || sent[contact.id]) return
+    setError("")
+    setSending((prev) => ({ ...prev, [contact.id]: true }))
+    try {
+      await sendMessage(contact.username, {
+        content: article?.title ? `Shared a story: ${article.title}` : "Shared a story with you",
+        postId: article?.id,
+      })
+      setSent((prev) => ({ ...prev, [contact.id]: true }))
+    } catch (err) {
+      setError(err.message || "Could not send the story.")
+    } finally {
+      setSending((prev) => ({ ...prev, [contact.id]: false }))
+    }
   }
 
   /* Copy the article permalink (clipboard API with a legacy fallback) */
@@ -177,12 +207,28 @@ export default function ShareModal({ isOpen, onClose, article }) {
           </div>
         </div>
 
+        {/* Send error (if any) */}
+        {error && (
+          <p className="mx-5 mt-3 rounded-xl bg-red-900/30 border border-red-700/40
+                        px-4 py-2.5 text-xs text-red-300 font-sans-ui" role="alert">
+            {error}
+          </p>
+        )}
+
         {/* Contacts list */}
         <div
           className="mt-3 overflow-y-auto max-h-72 scrollbar-thin px-2 pb-2"
           aria-live="polite"
         >
-          {filtered.length === 0 ? (
+          {!isAuthenticated ? (
+            <p className="text-center text-[#7a7060] text-sm py-8 font-sans-ui px-6">
+              Sign in to send stories to the people you follow.
+            </p>
+          ) : contacts.length === 0 ? (
+            <p className="text-center text-[#7a7060] text-sm py-8 font-sans-ui px-6">
+              You're not following anyone yet — follow writers to share stories with them.
+            </p>
+          ) : filtered.length === 0 ? (
             <p className="text-center text-[#7a7060] text-sm py-8 font-sans-ui">
               No contacts found
             </p>
@@ -193,41 +239,48 @@ export default function ShareModal({ isOpen, onClose, article }) {
                 className="flex items-center gap-3 px-3 py-3 rounded-xl
                            hover:bg-[#1a1a1a] transition-colors duration-150"
               >
-                {/* Avatar monogram */}
-                <span
-                  className="w-10 h-10 rounded-full bg-[#2a2a2a] flex-shrink-0
-                             flex items-center justify-center
-                             text-[#c9a84c] text-sm font-bold ring-1 ring-[#3a3329]"
-                >
-                  {contact.name.charAt(0)}
-                </span>
+                {/* Avatar */}
+                {contact.avatarUrl ? (
+                  <img
+                    src={contact.avatarUrl}
+                    alt={contact.name}
+                    className="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-1 ring-[#3a3329]"
+                  />
+                ) : (
+                  <span
+                    className="w-10 h-10 rounded-full bg-[#2a2a2a] flex-shrink-0
+                               flex items-center justify-center
+                               text-[#c9a84c] text-sm font-bold ring-1 ring-[#3a3329]"
+                  >
+                    {contact.name.charAt(0)}
+                  </span>
+                )}
 
-                {/* Name + mutual info */}
+                {/* Name + handle */}
                 <div className="flex-1 min-w-0">
                   <p className="text-[#e8e0d4] text-sm font-medium font-sans-ui truncate">
                     {contact.name}
                   </p>
                   <p className="text-[#7a7060] text-xs font-sans-ui truncate">
                     @{contact.username}
-                    {contact.mutualFollowers > 0 && (
-                      <> · {contact.mutualFollowers} mutual</>
-                    )}
                   </p>
                 </div>
 
-                {/* Send button — toggles to "Sent" on click */}
+                {/* Send button — real message via POST /api/messages/:username */}
                 <button
-                  onClick={() => handleSend(contact.id)}
-                  disabled={sent[contact.id]}
+                  onClick={() => handleSend(contact)}
+                  disabled={sent[contact.id] || sending[contact.id]}
                   aria-label={sent[contact.id] ? "Sent" : `Send to ${contact.name}`}
                   className={`px-4 py-1.5 rounded-full text-xs font-semibold font-sans-ui
                               transition-all duration-200 flex-shrink-0
                               ${sent[contact.id]
                                 ? "bg-[#2a2a2a] text-[#7a7060] cursor-default"
-                                : "bg-[#c9a84c] text-[#0e0e0e] hover:bg-[#e2c97e] hover:scale-[1.02] active:scale-[0.98]"
+                                : sending[contact.id]
+                                  ? "bg-[#2a2a2a] text-[#7a7060] cursor-wait"
+                                  : "bg-[#c9a84c] text-[#0e0e0e] hover:bg-[#e2c97e] hover:scale-[1.02] active:scale-[0.98]"
                               }`}
                 >
-                  {sent[contact.id] ? "Sent ✓" : "Send"}
+                  {sent[contact.id] ? "Sent ✓" : sending[contact.id] ? "Sending…" : "Send"}
                 </button>
               </div>
             ))

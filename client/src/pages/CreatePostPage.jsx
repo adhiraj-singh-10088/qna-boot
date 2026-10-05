@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 import AppLayout from "../components/layout/AppLayout"
 import { useAuth } from "../context/AuthContext"
 import { createPost, fetchPost, updatePost } from "../api/posts"
+import { uploadImage } from "../api/uploads"
 
 /* ── Icons ───────────────────────────────────────────── */
 function BoldIcon()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg> }
@@ -69,12 +70,15 @@ export default function CreatePostPage() {
   const [tags, setTags]                 = useState([])
   const [category, setCategory]         = useState("")
   const [coverPreview, setCoverPreview] = useState(null)
+  const [coverUrl, setCoverUrl]         = useState(null)
+  const [coverBusy, setCoverBusy]       = useState(false)
   const [preview, setPreview]           = useState(false)
   const [saved, setSaved]               = useState(false)
   const [wordCount, setWordCount]       = useState(0)
   const [publishing, setPublishing]     = useState(false)
   const [loadingPost, setLoadingPost]   = useState(!!editId)
   const [initialHtml, setInitialHtml]   = useState(null)
+  const [isDraftPost, setIsDraftPost]   = useState(false)
 
   /* ── Edit mode: prefill the editor with the existing post ─────────── */
   useEffect(() => {
@@ -94,6 +98,9 @@ export default function CreatePostPage() {
         setSubtitle(post.subtitle || "")
         setCategory(post.category || "")
         setTags(Array.isArray(post.tags) ? post.tags : [])
+        setCoverUrl(post.coverUrl || null)
+        setCoverPreview(post.coverUrl || null)
+        setIsDraftPost(Boolean(post.isDraft))
         // The editor is not mounted while loadingPost is true — stash the HTML
         // and apply it in the effect below once the editor actually renders.
         setInitialHtml(post.content || "")
@@ -145,35 +152,65 @@ export default function CreatePostPage() {
   }
   const removeTag = (value) => setTags(tags.filter((x) => x !== value))
 
-  const handleCover = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => setCoverPreview(ev.target.result)
-    reader.readAsDataURL(file)
+  const handleCover = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || coverBusy) return
+    setCoverBusy(true)
+    try {
+      const res = await uploadImage(file)
+      setCoverUrl(res.url)
+      setCoverPreview(res.url)
+      setSaved(false)
+    } catch (err) {
+      window.alert(err.message)
+    } finally {
+      setCoverBusy(false)
+      e.target.value = ""
+    }
   }
 
-  const saveDraft = () => { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+  /* Shared payload for Publish / Save-as-draft */
+  const buildPayload = ({ draft = false } = {}) => ({
+    title: title.trim(),
+    subtitle: subtitle.trim() || undefined,
+    content: editorRef.current?.innerHTML || "",
+    category: category || undefined,
+    tags,
+    cover_url: coverUrl || null,
+    ...(draft ? { status: "draft", draft: true } : {}),
+  })
+
+  /* Save as draft on the server, then show it on the profile (drafts live there) */
+  const saveDraft = async () => {
+    if (publishing) return
+    if (!title.trim()) { window.alert(t('create.errorTitle')); return }
+    setPublishing(true)
+    try {
+      const payload = buildPayload({ draft: true })
+      if (editId) await updatePost(editId, payload)
+      else await createPost(payload)
+      navigate("/profile")
+    } catch (err) {
+      if (err.status === 401) window.alert(t('create.loginRequired'))
+      else window.alert(err.message)
+    } finally {
+      setPublishing(false)
+    }
+  }
 
   /* ── Publish (create) or save (edit) — real API calls ─────────────── */
   const handlePublish = async (e) => {
     e.preventDefault()
     if (publishing) return
 
-    const html = editorRef.current?.innerHTML || ""
     const text = editorRef.current?.innerText || ""
     if (!title.trim()) { window.alert(t('create.errorTitle')); return }
     if (!text.trim())  { window.alert(t('create.errorContent')); return }
 
     setPublishing(true)
     try {
-      const payload = {
-        title: title.trim(),
-        subtitle: subtitle.trim() || undefined,
-        content: html,
-        category: category || undefined,
-        tags,
-      }
+      const payload = buildPayload()
+      if (editId && isDraftPost) payload.status = "published"
       const res = editId
         ? await updatePost(editId, payload)
         : await createPost(payload)
@@ -195,6 +232,11 @@ export default function CreatePostPage() {
           <div>
             <h1 className="text-[#e8e0d4] text-2xl font-bold" style={{ fontFamily: "'Georgia', serif" }}>
               {editId ? t('create.editTitle') : t('create.title')}
+              {isDraftPost && (
+                <span className="ml-3 align-middle font-sans-ui text-[10px] px-2 py-0.5 rounded-full bg-[#2a2218] border border-[#3a3020] text-[#c9a84c] uppercase tracking-wider">
+                  {t('profile.draft')}
+                </span>
+              )}
             </h1>
             <p className="font-sans-ui text-xs text-[#7a7060] mt-1">
               {t('post.words', { count: wordCount })} · {t('post.minRead', { count: readTime })}
@@ -208,12 +250,15 @@ export default function CreatePostPage() {
                 {t('create.saved')}
               </span>
             )}
-            <button
-              onClick={saveDraft}
-              className="flex items-center gap-2 font-sans-ui text-sm px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880] hover:border-[#c9a84c]/60 hover:text-[#c9a84c] transition-all duration-200"
-            >
-              <SaveIcon /> <span className="hidden sm:inline">{t('create.saveDraft')}</span>
-            </button>
+            {(!editId || isDraftPost) && (
+              <button
+                onClick={saveDraft}
+                disabled={publishing}
+                className="flex items-center gap-2 font-sans-ui text-sm px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880] hover:border-[#c9a84c]/60 hover:text-[#c9a84c] transition-all duration-200 disabled:opacity-50"
+              >
+                <SaveIcon /> <span className="hidden sm:inline">{t('create.saveDraft')}</span>
+              </button>
+            )}
             <button
               onClick={() => setPreview(!preview)}
               className={`flex items-center gap-2 font-sans-ui text-sm px-4 py-2 rounded-full border transition-all duration-200 ${
@@ -236,8 +281,8 @@ export default function CreatePostPage() {
                 </svg>
               ) : null}
               {publishing
-                ? (editId ? t('create.saving') : t('create.publishing'))
-                : (editId ? t('create.save') : t('create.publish'))}
+                ? ((editId && !isDraftPost) ? t('create.saving') : t('create.publishing'))
+                : ((editId && !isDraftPost) ? t('create.save') : t('create.publish'))}
             </button>
           </div>
         </header>
@@ -294,7 +339,7 @@ export default function CreatePostPage() {
                       {t('create.changeCover')}
                       <input type="file" accept="image/*" onChange={handleCover} className="hidden" />
                     </label>
-                    <button onClick={() => setCoverPreview(null)} className="font-sans-ui text-sm px-4 py-2 rounded-full bg-[#2a2520] text-[#e8e0d4] border border-[#3a3329]">
+                    <button onClick={() => { setCoverPreview(null); setCoverUrl(null) }} className="font-sans-ui text-sm px-4 py-2 rounded-full bg-[#2a2520] text-[#e8e0d4] border border-[#3a3329]">
                       {t('create.remove')}
                     </button>
                   </div>
@@ -304,7 +349,7 @@ export default function CreatePostPage() {
                   <div className="w-10 h-10 rounded-full bg-[#2a2218] border border-[#3a3020] flex items-center justify-center text-[#c9a84c] mb-3 group-hover:border-[#c9a84c]/60 transition-colors">
                     <ImageIcon />
                   </div>
-                  <p className="font-sans-ui text-sm text-[#7a7060] group-hover:text-[#a09880] transition-colors">{t('create.addCover')}</p>
+                  <p className="font-sans-ui text-sm text-[#7a7060] group-hover:text-[#a09880] transition-colors">{coverBusy ? t('common.loading') : t('create.addCover')}</p>
                   <p className="font-sans-ui text-xs text-[#3a3329] mt-1">{t('create.coverHint')}</p>
                   <input type="file" accept="image/*" onChange={handleCover} className="hidden" />
                 </label>

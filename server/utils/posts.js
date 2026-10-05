@@ -8,6 +8,7 @@ import { sanitizePostHtml } from "./sanitize.js";
 
 const POST_FIELDS = `
   p.id, p.title, p.subtitle, p.content, p.category, p.tags,
+  p.cover_url, p.status,
   p.created_at, p.updated_at, p.edited,
   u.uid AS author_id, u.username AS author_username, u.full_name AS author_full_name,
   (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
@@ -58,6 +59,8 @@ export function mapPost(row) {
     title: row.title,
     subtitle: row.subtitle || null,
     content: safeContent,
+    coverUrl: row.cover_url || null,
+    isDraft: row.status === "draft",
     excerpt: excerptSource.length > 240 ? `${excerptSource.slice(0, 240).trimEnd()}…` : excerptSource,
     category: row.category || null,
     tags: parseTags(row.tags),
@@ -88,16 +91,24 @@ export async function fetchPosts({
   order = "p.created_at DESC",
   limit = 20,
   offset = 0,
+  includeDrafts = false,
 } = {}) {
   const safeLimit = clampInt(limit, 20, 1, 50);
   const safeOffset = clampInt(offset, 0, 0, 100000);
+
+  /* Drafts are private: excluded unless the caller opts in (author's own
+     profile). `where` callers pass a full "WHERE …" clause — merge carefully. */
+  const conditions = [];
+  if (where) conditions.push(where.replace(/^WHERE\s+/i, ""));
+  if (!includeDrafts) conditions.push("p.status = 'published'");
+  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const sql = `
     SELECT ${POST_FIELDS}
     FROM posts p
     JOIN users u ON u.uid = p.author_id
     ${joins}
-    ${where}
+    ${whereClause}
     ORDER BY ${order}
     LIMIT ${safeLimit} OFFSET ${safeOffset}
   `;
@@ -114,7 +125,11 @@ export async function fetchPostById(id, viewerId = 0) {
     `SELECT ${POST_FIELDS} FROM posts p JOIN users u ON u.uid = p.author_id WHERE p.id = ? LIMIT 1`,
     [viewerId, viewerId, numericId],
   );
-  return rows.length ? mapPost(rows[0]) : null;
+  if (!rows.length) return null;
+  const row = rows[0];
+  /* Drafts are private: only the author may fetch them */
+  if (row.status === "draft" && String(viewerId || 0) !== String(row.author_id)) return null;
+  return mapPost(row);
 }
 
 /** Lightweight row used for ownership checks. */
@@ -122,6 +137,6 @@ export async function getPostRow(id) {
   const numericId = Number.parseInt(id, 10);
   if (Number.isNaN(numericId)) return null;
 
-  const [rows] = await pool.execute("SELECT id, author_id FROM posts WHERE id = ? LIMIT 1", [numericId]);
+  const [rows] = await pool.execute("SELECT id, author_id, cover_url, status FROM posts WHERE id = ? LIMIT 1", [numericId]);
   return rows[0] || null;
 }
