@@ -31,7 +31,7 @@ router.delete("/:id/like", authMiddleware, unlikePost);
 router.post("/:id/bookmark", authMiddleware, bookmarkPost);
 router.delete("/:id/bookmark", authMiddleware, unbookmarkPost);
 
-router.get("/:id/comments", listComments);
+router.get("/:id/comments", optionalAuth, listComments);
 router.post("/:id/comments", authMiddleware, addComment);
 
 export default router;

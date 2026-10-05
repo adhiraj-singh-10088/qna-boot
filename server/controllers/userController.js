@@ -73,11 +73,11 @@ export async function getUserProfile(req, res) {
     const viewerId = req.user?.id || 0;
     const [rows] = await pool.execute(
       `SELECT u.uid, u.username, u.full_name, u.avatar_url, u.bio, u.is_private, u.created_at,
-         (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.uid) AS post_count,
+         (SELECT COUNT(*) FROM posts p WHERE p.author_id = u.uid AND (p.status = 'published' OR u.uid = ?)) AS post_count,
          (SELECT COUNT(*) FROM follows f WHERE f.followee_id = u.uid AND f.status = 'accepted') AS follower_count,
          (SELECT COUNT(*) FROM follows f2 WHERE f2.follower_id = u.uid AND f2.status = 'accepted') AS following_count
        FROM users u WHERE u.username = ? LIMIT 1`,
-      [req.params.username],
+      [viewerId, req.params.username],
     );
     const row = rows[0];
     if (!row) return res.status(404).json({ error: "User not found" });

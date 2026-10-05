@@ -138,7 +138,7 @@
     "errorContent": "प्रकाशित करने से पहले कुछ सामग्री लिखें।",
     "backToFeed": "वापस",
     "addCover": "कवर इमेज जोड़ें",
-    "coverHint": "PNG, JPG 10MB तक (अभी केवल पूर्वावलोकन)",
+    "coverHint": "PNG, JPG, WebP या GIF, 5MB तक",
     "changeCover": "कवर बदलें",
     "remove": "हटाएँ",
     "selectCategory": "श्रेणी चुनें…",

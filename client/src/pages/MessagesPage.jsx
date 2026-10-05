@@ -51,8 +51,7 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!activeId) return
     markRead(activeId)
-    loadThread(activeId).catch(() => { /* keep the list usable on failure */ })
-  }, [activeId, loadThread, markRead])
+  }, [activeId, markRead])
 
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -61,6 +60,9 @@ export default function MessagesPage() {
   function openThread(id) {
     setActiveId(id)
     setDraft("")
+    /* Always (re)load — also when re-clicking the open thread — so new
+       incoming messages show up without switching conversations. */
+    loadThread(id).catch(() => { /* keep the list usable on failure */ })
   }
 
   async function handleSend(event) {

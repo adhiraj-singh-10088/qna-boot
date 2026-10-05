@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
 import { updateMe } from "../../api/users"
 import { uploadImage } from "../../api/uploads"
+import { getSessionUser } from "../../api/auth"
 
 export default function EditProfileModal({ isOpen, onClose, onSaved }) {
   const { t } = useTranslation()
@@ -24,6 +25,23 @@ export default function EditProfileModal({ isOpen, onClose, onSaved }) {
       is_private: Boolean(user?.is_private),
       avatar_url: user?.avatar_url || "",
     })
+    /* Refresh from the server so a stale cached session can't overwrite
+       newer profile data (e.g. an avatar set on another device). */
+    let cancelled = false
+    getSessionUser()
+      .then((fresh) => {
+        if (cancelled || !fresh) return
+        updateUser(fresh)
+        setForm({
+          full_name: fresh.full_name || "",
+          username: fresh.username || "",
+          bio: fresh.bio || "",
+          is_private: Boolean(fresh.is_private),
+          avatar_url: fresh.avatar_url || "",
+        })
+      })
+      .catch(() => { /* offline — keep the cached prefill */ })
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- prefill only when the modal opens;
     // depending on `user` would wipe the "saved" confirmation right after updateUser()
   }, [isOpen])

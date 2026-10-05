@@ -64,6 +64,11 @@ function cleanCoverUrl(value) {
   return v;
 }
 
+/* Drafts are visible to the author only — interactions must 404 for everyone else. */
+function canSeePost(post, viewerId) {
+  return post.status !== "draft" || String(viewerId || 0) === String(post.author_id);
+}
+
 export async function createPost(req, res) {
   // Validates post data, associates it with the authenticated user, and stores it.
   const { title, content, subtitle, category, tags } = req.body || {};
@@ -117,9 +122,6 @@ export async function updatePost(req, res) {
   const cleanContent = typeof content === "string" ? sanitizePostHtml(content) : "";
   const hasCover = Object.prototype.hasOwnProperty.call(req.body || {}, "cover_url");
   const statusIntent = req.body?.status === "draft" ? "draft" : req.body?.status === "published" ? "published" : undefined;
-  if (!cleanTitle || (statusIntent !== "draft" && !stripHtml(cleanContent))) {
-    return res.status(400).json({ error: "Title and content are required" });
-  }
 
   try {
     const existing = await getPostRow(req.params.id);
@@ -128,8 +130,13 @@ export async function updatePost(req, res) {
       return res.status(403).json({ error: "Only the author can edit this post" });
     }
 
-    const nextCover = hasCover ? cleanCoverUrl(req.body?.cover_url) : existing.cover_url;
+    /* Content is required only when the post is (or becomes) published. */
     const nextStatus = statusIntent || existing.status || "published";
+    if (!cleanTitle || (nextStatus !== "draft" && !stripHtml(cleanContent))) {
+      return res.status(400).json({ error: "Title and content are required" });
+    }
+
+    const nextCover = hasCover ? cleanCoverUrl(req.body?.cover_url) : existing.cover_url;
     await pool.execute(
       "UPDATE posts SET title = ?, subtitle = ?, content = ?, category = ?, tags = ?, cover_url = ?, status = ?, edited = 1 WHERE id = ?",
       [
@@ -188,7 +195,7 @@ export async function likePost(req, res) {
   // Idempotent like + notification to the post author.
   try {
     const post = await getPostRow(req.params.id);
-    if (!post) return res.status(404).json({ error: "Post not found" });
+    if (!post || !canSeePost(post, req.user.id)) return res.status(404).json({ error: "Post not found" });
 
     const [insert] = await pool.execute("INSERT IGNORE INTO likes (post_id, user_id) VALUES (?, ?)", [post.id, req.user.id]);
     // Only notify on a fresh like (INSERT IGNORE reports 0 affected rows for duplicates)
@@ -205,7 +212,7 @@ export async function likePost(req, res) {
 export async function unlikePost(req, res) {
   try {
     const post = await getPostRow(req.params.id);
-    if (!post) return res.status(404).json({ error: "Post not found" });
+    if (!post || !canSeePost(post, req.user.id)) return res.status(404).json({ error: "Post not found" });
 
     await pool.execute("DELETE FROM likes WHERE post_id = ? AND user_id = ?", [post.id, req.user.id]);
 
@@ -220,7 +227,7 @@ export async function unlikePost(req, res) {
 export async function bookmarkPost(req, res) {
   try {
     const post = await getPostRow(req.params.id);
-    if (!post) return res.status(404).json({ error: "Post not found" });
+    if (!post || !canSeePost(post, req.user.id)) return res.status(404).json({ error: "Post not found" });
 
     await pool.execute("INSERT IGNORE INTO bookmarks (user_id, post_id) VALUES (?, ?)", [req.user.id, post.id]);
     return res.json({ isSaved: true });
@@ -233,7 +240,7 @@ export async function bookmarkPost(req, res) {
 export async function unbookmarkPost(req, res) {
   try {
     const post = await getPostRow(req.params.id);
-    if (!post) return res.status(404).json({ error: "Post not found" });
+    if (!post || !canSeePost(post, req.user.id)) return res.status(404).json({ error: "Post not found" });
 
     await pool.execute("DELETE FROM bookmarks WHERE user_id = ? AND post_id = ?", [req.user.id, post.id]);
     return res.json({ isSaved: false });
@@ -244,8 +251,11 @@ export async function unbookmarkPost(req, res) {
 }
 
 export async function listComments(req, res) {
-  // Public comment list for a post, oldest first.
+  // Public comment list for a post, oldest first (drafts stay private).
   try {
+    const post = await getPostRow(req.params.id);
+    if (!post || !canSeePost(post, req.user?.id)) return res.status(404).json({ error: "Post not found" });
+
     const [rows] = await pool.execute(
       `SELECT c.id, c.content, c.created_at, u.uid AS author_id, u.username, u.full_name
        FROM comments c
@@ -276,7 +286,7 @@ export async function addComment(req, res) {
 
   try {
     const post = await getPostRow(req.params.id);
-    if (!post) return res.status(404).json({ error: "Post not found" });
+    if (!post || !canSeePost(post, req.user.id)) return res.status(404).json({ error: "Post not found" });
 
     const [result] = await pool.execute(
       "INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)",

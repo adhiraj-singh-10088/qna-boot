@@ -17,6 +17,17 @@ Every change made through Hermes also updates `AGENTS.md` in the same change set
 
 ## Entries (newest first)
 
+### 2026-10-05 — Second fix batch (bugs found by the uploads/drafts/messaging subagent test round)   [Hermes agent session]
+- **Draft privacy hardened (medium):** like/unlike/comment/bookmark/comment-list endpoints enforce draft visibility (`canSeePost` in `postController`) — non-authors get 404 instead of silently interacting with (and notifying about) drafts they can't see; `GET /api/posts/:id/comments` gained `optionalAuth` so the author can still read their own draft's comments.
+- **Upload integrity (low):** magic-byte validation on `POST /api/uploads` — files whose real bytes don't match the declared type (e.g. SVG bytes as `image/png`) are rejected 400 and deleted from disk.
+- **Profile counts (low):** `postCount` is viewer-aware — drafts count only for the owner; other viewers see the published-only count (no more count/empty-grid mismatch).
+- **Draft update UX (low):** `PUT` on an existing draft with empty content no longer 400s when no status field is sent (content is required only when published/publishing).
+- **Messages (low):** `postId` attachments are strict-integer and **published-only** (drafts can't be dead-linked; malformed ids no longer silently attach); re-clicking the open conversation reloads its thread (messages arriving while open now appear without switching away); draft post pages no longer show a Share button.
+- **Stale-session avatar wipe (medium):** Edit Profile refreshes from the server when it opens (`getSessionUser` → AuthContext sync), so saving from a stale cached session can no longer clear a newer avatar.
+- **i18n:** cover hint corrected to "PNG, JPG, WebP or GIF up to 5 MB" (EN/HI/ES).
+- **Verified:** `qna-fixes2-check.mjs` **20/20**; regressions: smoke **50/50**, security **29/29** (one run showed 6 false failures from an expired 1 h test token — refresh restored 29/29), features **32/32**; `npm run build` green; browser checks: stale-session avatar preserved through a save, draft page has no Share button, thread re-click reveals a message that arrived while open.
+- Files: `server/{routes/{posts,uploads}.js, controllers/{postController,userController,messageController}.js}`, `client/src/{pages/{MessagesPage,PostPage}.jsx, components/profile/EditProfileModal.jsx, i18n/locales/{en,hi,es}.json}`, `CHANGELOG.md`.
+
 ### 2026-10-05 — Second feature batch: image uploads (covers/avatars), server-side drafts, real messaging + wired share-to-contact   [Hermes agent session]
 - **Uploads:** `multer` disk storage (`server/uploads/`, 5 MB cap, JPEG/PNG/WebP/GIF only) via `POST /api/uploads` (auth, multipart `image`) + static `/uploads` serving + Vite proxy; `server/uploads/` gitignored. Post covers (`posts.cover_url`, only internal `/uploads/...` or http(s) values) render in the editor preview, on `/post/:id`, and as profile-grid thumbnails. Avatars (`users.avatar_url`) upload from Edit profile and render on the profile header, ShareModal list and message threads.
 - **Drafts:** `posts.status` ('published'|'draft'); "Save Draft" is real (title-only allowed) → drafts appear on your own profile with a DRAFT badge, open in the editor, publish via the same Publish button (`PUT` status→published). Drafts are author-only: 404 for everyone else, hidden from feed/bookmarks.

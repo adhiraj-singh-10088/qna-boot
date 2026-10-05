@@ -295,16 +295,18 @@ export default function PostPage() {
               {post.comments || 0}
             </a>
 
-            <button
-              onClick={() => setSharing(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880]
-                         hover:border-[#c9a84c]/60 hover:text-[#c9a84c] transition-all duration-200 text-sm font-sans-ui"
-            >
-              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
-              </svg>
-              {t('common.share')}
-            </button>
+            {!post.isDraft && (
+              <button
+                onClick={() => setSharing(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880]
+                           hover:border-[#c9a84c]/60 hover:text-[#c9a84c] transition-all duration-200 text-sm font-sans-ui"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+                </svg>
+                {t('common.share')}
+              </button>
+            )}
 
             <button
               onClick={handleSave}

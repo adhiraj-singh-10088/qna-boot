@@ -138,7 +138,7 @@
     "errorContent": "Write some content before publishing.",
     "backToFeed": "Back",
     "addCover": "Add a cover image",
-    "coverHint": "PNG, JPG up to 10MB (preview only for now)",
+    "coverHint": "PNG, JPG, WebP or GIF up to 5 MB",
     "changeCover": "Change Cover",
     "remove": "Remove",
     "selectCategory": "Select a category…",

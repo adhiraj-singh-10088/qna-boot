@@ -129,12 +129,12 @@ export async function sendMessage(req, res) {
     if (found.error) return res.status(found.code).json({ error: found.error });
     const partner = found.user;
 
-    /* Optional: attach a (published) post to the message */
+    /* Optional: attach a published post to the message (drafts stay unlinkable) */
     let cleanPostId = null;
     if (postId !== undefined && postId !== null) {
-      const n = Number.parseInt(postId, 10);
-      if (!Number.isNaN(n)) {
-        const [prows] = await pool.execute("SELECT id FROM posts WHERE id = ? LIMIT 1", [n]);
+      const n = Number(postId);
+      if (Number.isInteger(n) && n > 0) {
+        const [prows] = await pool.execute("SELECT id FROM posts WHERE id = ? AND status = 'published' LIMIT 1", [n]);
         if (prows[0]) cleanPostId = prows[0].id;
       }
     }

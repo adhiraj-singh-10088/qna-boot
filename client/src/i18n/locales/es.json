@@ -138,7 +138,7 @@
     "errorContent": "Escribe algo de contenido antes de publicar.",
     "backToFeed": "Atrás",
     "addCover": "Añadir imagen de portada",
-    "coverHint": "PNG, JPG hasta 10MB (solo vista previa por ahora)",
+    "coverHint": "PNG, JPG, WebP o GIF hasta 5 MB",
     "changeCover": "Cambiar portada",
     "remove": "Quitar",
     "selectCategory": "Selecciona una categoría…",
