@@ -17,7 +17,7 @@ Every change made through Hermes also updates `AGENTS.md` in the same change set
 
 ## Entries (newest first)
 
-### 2026-10-05 — Second fix batch (bugs found by the uploads/drafts/messaging subagent test round)   [Hermes agent session]
+### 2026-10-05 — Second fix batch (bugs found by the uploads/drafts/messaging subagent test round)   [Hermes agent session · git: 57ef083]
 - **Draft privacy hardened (medium):** like/unlike/comment/bookmark/comment-list endpoints enforce draft visibility (`canSeePost` in `postController`) — non-authors get 404 instead of silently interacting with (and notifying about) drafts they can't see; `GET /api/posts/:id/comments` gained `optionalAuth` so the author can still read their own draft's comments.
 - **Upload integrity (low):** magic-byte validation on `POST /api/uploads` — files whose real bytes don't match the declared type (e.g. SVG bytes as `image/png`) are rejected 400 and deleted from disk.
 - **Profile counts (low):** `postCount` is viewer-aware — drafts count only for the owner; other viewers see the published-only count (no more count/empty-grid mismatch).
