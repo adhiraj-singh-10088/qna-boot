@@ -1,4 +1,5 @@
 import pool from "./db.js";
+import { sanitizePostHtml } from "./sanitize.js";
 
 /*
  * Shared post query + mapping helpers.
@@ -49,12 +50,14 @@ function parseTags(value) {
 }
 
 export function mapPost(row) {
-  const excerptSource = row.subtitle || stripHtml(row.content);
+  /* Defense in depth: legacy rows may predate write-side sanitization. */
+  const safeContent = sanitizePostHtml(row.content);
+  const excerptSource = row.subtitle || stripHtml(safeContent);
   return {
     id: row.id,
     title: row.title,
     subtitle: row.subtitle || null,
-    content: row.content,
+    content: safeContent,
     excerpt: excerptSource.length > 240 ? `${excerptSource.slice(0, 240).trimEnd()}…` : excerptSource,
     category: row.category || null,
     tags: parseTags(row.tags),

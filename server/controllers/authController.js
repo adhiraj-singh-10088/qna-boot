@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import pool from "../utils/db.js";
+import { TOKEN_COOKIE, loginCookieOptions } from "../utils/authCookie.js";
 
 dotenv.config();
 
@@ -78,11 +79,27 @@ export async function login(req, res) {
       { expiresIn: process.env.JWT_EXPIRES_IN || "1h" }
     );
 
+    /* The browser session lives in an httpOnly cookie (XSS can't read it).
+       The token is still returned in the body for API clients/scripts
+       that authenticate with Bearer headers. */
+    res.cookie(TOKEN_COOKIE, token, loginCookieOptions());
+
     return res.json({ message: "Login successful", token, user: safeUser });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });
   }
+}
+
+export async function logout(req, res) {
+  // Clears the httpOnly session cookie (the JWT itself is stateless).
+  res.clearCookie(TOKEN_COOKIE, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+  return res.json({ message: "Logged out" });
 }
 
 export async function getMe(req, res) {

@@ -1,7 +1,11 @@
 const TOKEN_KEY = 'inkspace_token';
 const USER_KEY = 'inkspace_user';
 
-/** Reads the auth token from localStorage (single source of truth for API calls). */
+/**
+ * Reads the legacy auth token from localStorage. The browser session now
+ * lives in an httpOnly cookie — this stays for API-client compatibility
+ * (scripts may still inject a token) and is attached as a Bearer header.
+ */
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -44,6 +48,7 @@ export async function apiFetch(path, { method = 'GET', body, auth = true } = {})
     res = await fetch(path, {
       method,
       headers,
+      credentials: 'include', // send the httpOnly session cookie
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {

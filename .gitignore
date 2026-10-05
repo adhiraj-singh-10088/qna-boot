@@ -1,0 +1,8 @@
+# Secrets & environment (never commit real values)
+.env
+
+# Dependencies
+node_modules/
+
+# Tooling artifacts
+.commandcode/

@@ -1,5 +1,6 @@
 import pool from "../utils/db.js";
 import { fetchPostById, fetchPosts, getPostRow, stripHtml } from "../utils/posts.js";
+import { sanitizePostHtml } from "../utils/sanitize.js";
 import { notify } from "../utils/notify.js";
 
 /*
@@ -58,7 +59,8 @@ export async function createPost(req, res) {
   // Validates post data, associates it with the authenticated user, and stores it.
   const { title, content, subtitle, category, tags } = req.body || {};
   const cleanTitle = cleanStr(title, 255);
-  if (!cleanTitle || typeof content !== "string" || !stripHtml(content)) {
+  const cleanContent = typeof content === "string" ? sanitizePostHtml(content) : "";
+  if (!cleanTitle || !stripHtml(cleanContent)) {
     return res.status(400).json({ error: "Title and content are required" });
   }
 
@@ -69,7 +71,7 @@ export async function createPost(req, res) {
         req.user.id,
         cleanTitle,
         cleanStr(subtitle, 500) || null,
-        content,
+        cleanContent,
         cleanStr(category, 50) || null,
         tagsToJson(parseTags(tags)),
       ],
@@ -99,7 +101,8 @@ export async function updatePost(req, res) {
   // Confirms ownership, updates the post, and flags it as edited.
   const { title, content, subtitle, category, tags } = req.body || {};
   const cleanTitle = cleanStr(title, 255);
-  if (!cleanTitle || typeof content !== "string" || !stripHtml(content)) {
+  const cleanContent = typeof content === "string" ? sanitizePostHtml(content) : "";
+  if (!cleanTitle || !stripHtml(cleanContent)) {
     return res.status(400).json({ error: "Title and content are required" });
   }
 
@@ -115,7 +118,7 @@ export async function updatePost(req, res) {
       [
         cleanTitle,
         cleanStr(subtitle, 500) || null,
-        content,
+        cleanContent,
         cleanStr(category, 50) || null,
         tagsToJson(parseTags(tags)),
         existing.id,

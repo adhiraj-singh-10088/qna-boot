@@ -25,6 +25,7 @@ export async function signupUser(data) {
     res = await fetch(`${BASE}/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data),
     });
   } catch {
@@ -47,6 +48,7 @@ export async function loginUser(data) {
     res = await fetch(`${BASE}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data),
     });
   } catch {
@@ -77,4 +79,28 @@ export async function getMe(token) {
     throw new Error(json?.error || 'Unauthorized');
   }
   return json; // { user }
+}
+
+/**
+ * Fetches the session user via the httpOnly cookie (no token argument needed).
+ * Returns the user object when a valid session cookie is present, else null.
+ */
+export async function getSessionUser() {
+  try {
+    const res = await fetch(`${BASE}/me`, { credentials: 'include' });
+    if (!res.ok) return null;
+    const json = await safeJson(res);
+    return json?.user || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Ends the session server-side (clears the httpOnly cookie). */
+export async function logoutUser() {
+  try {
+    await fetch(`${BASE}/logout`, { method: 'POST', credentials: 'include' });
+  } catch {
+    /* best effort — local state is cleared regardless */
+  }
 }
