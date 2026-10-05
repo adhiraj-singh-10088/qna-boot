@@ -20,7 +20,7 @@ Every change made through Hermes also updates `AGENTS.md` in the same change set
 ### 2026-10-05 — DM inbox search bar   [Hermes agent session]
 - **Feature:** search box above the conversation list on `/messages` — filters conversations live by peer name, @username, or last-message text; clear button; "no conversations match" empty state. New i18n keys `messages.searchPlaceholder` / `messages.noResults` / `messages.clearSearch` (EN/HI/ES).
 - **Verified:** `npm run build` + lint clean; browser check (demo session): full list → filtered to "reader" (only Demo Reader) → "zzz-nothing" shows the no-results state → clearing restores the list; screenshots `tour-dm-search-*.png`.
-- Files: `client/src/pages/MessagesPage.jsx`, `client/src/i18n/locales/{en,hi,es}.json`, `CHANGELOG.md`. ⏳ AGENTS.md `/messages` route line (search-box mention) is pending — the protected-file approval prompt timed out; needs one approval to apply.
+- Files: `client/src/pages/MessagesPage.jsx`, `client/src/i18n/locales/{en,hi,es}.json`, `AGENTS.md`, `CHANGELOG.md`.
 
 ### 2026-10-05 — i18n completion + content (data) translation + real "Your activity" panel   [Hermes agent session]
 - **i18n chrome finished:** Messages page, ShareModal, landing footer, and DOB month names are now translated (EN/HI/ES) — new locale groups `activity`, `messages`, `shareModal`, `footer`, `months` (+ ShareModal aria keys). Only the literary quotes stay English on purpose.

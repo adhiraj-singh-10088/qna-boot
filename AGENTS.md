@@ -1,6 +1,6 @@
 # AGENTS.md — qna-boot project notes (maintained by Hermes)
 
-**Last updated:** 2026-10-05 (feature batch 2 — uploads/drafts/messaging — plus i18n completion, content translation, and the activity panel) · **Repo root:** `/home/adhiraj/GitHub/Projects/qna-boot` · **Remote:** `https://github.com/adhiraj-singh-10088/qna-boot.git` (branch `main`)
+**Last updated:** 2026-10-05 (feature batch 2 — uploads/drafts/messaging — plus i18n completion, content translation, the activity panel, and the DM inbox search bar) · **Repo root:** `/home/adhiraj/GitHub/Projects/qna-boot` · **Remote:** `https://github.com/adhiraj-singh-10088/qna-boot.git` (branch `main`)
 
 > **Standing rule for the agent:** every time you implement a feature, fix, or any change in this project (code, config, docs), update **this file** (project state / structure / gotchas) **and** add an entry to **CHANGELOG.md** in the same repo root. Keep both in the same change set as the code. Do not `git commit` / `push` unless the user explicitly asks.
 
@@ -24,7 +24,7 @@
   - `/search` → `DiscoverPage` — guests get `GuestPrompt`; live user search (debounced) + follow-request accept/decline.
   - `/profile` & `/u/:username` → `ProfilePage` — own profile (Articles + Bookmarks tabs, edit/share) or public profile (follow/unfollow/request button, followers/following modals, private-account lock).
   - `/notifications` → `NotificationsPage` — likes / comments / follows / follow requests & accepts; mark one/all read; badge in Sidebar + BottomNav; also linked from MoreMenu.
-  - `/messages` → `MessagesPage` — real server-backed inbox (conversations, threads, unread badges via `MessagesContext` → `/api/messages`).
+  - `/messages` → `MessagesPage` — real server-backed inbox (conversations, threads, unread badges via `MessagesContext` → `/api/messages`); a search box above the conversation list filters by name / @handle / last-message text (client-side, EN/HI/ES placeholder).
   - `/create` → `CreatePostPage` — real publish (`POST /api/posts`) and edit mode (`/create?edit=<id>`, `PUT /api/posts/:id`); navigates to `/post/:id` after publish. Cover images upload for real (`POST /api/uploads` → `cover_url`); "Save Draft" stores a server draft (`status='draft'`) that the editor can reopen and publish.
   - `*` → redirect to `/`.
 - **Guard:** `GuestGuard` renders `GuestPrompt` for unauthenticated users.
