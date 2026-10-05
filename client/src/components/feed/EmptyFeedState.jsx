@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 /**
  * <EmptyFeedState />
@@ -6,6 +7,7 @@ import { Link } from "react-router-dom"
  * (i.e. the user hasn't followed any writers yet).
  */
 export default function EmptyFeedState() {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
 
@@ -54,12 +56,12 @@ export default function EmptyFeedState() {
         className="text-2xl font-semibold text-[#e8e0d4] mb-3 leading-snug"
         style={{ fontFamily: "'Georgia', serif" }}
       >
-        Your feed is quiet right now
+        {t('feed.emptyTitle')}
       </h2>
 
       {/* ── Subtitle ────────────────────────────────────────────────── */}
       <p className="text-[#7a7060] text-[15px] leading-relaxed max-w-xs font-sans-ui mb-8">
-        Follow writers and thinkers you love to see their editorials, essays, and stories here.
+        {t('feed.emptyText')}
       </p>
 
       {/* ── CTA Button ──────────────────────────────────────────────── */}
@@ -77,13 +79,13 @@ export default function EmptyFeedState() {
           <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="1.5"/>
           <path d="M12 7.5l-2 4-2-4 4-2-2 4" fill="currentColor" opacity="0.8"/>
         </svg>
-        Discover Writers
+        {t('feed.discoverWriters')}
       </Link>
 
       {/* ── Divider + secondary link ─────────────────────────────────── */}
       <div className="flex items-center gap-3 mt-6 text-[#7a7060] text-sm font-sans-ui">
         <span className="w-10 h-px bg-[#2a2a2a]" />
-        <span>or</span>
+        <span>{t('common.or')}</span>
         <span className="w-10 h-px bg-[#2a2a2a]" />
       </div>
       <Link
@@ -91,7 +93,7 @@ export default function EmptyFeedState() {
         className="mt-4 text-[#c9a84c] hover:text-[#e2c97e] text-sm font-medium
                    font-sans-ui underline underline-offset-4 transition-colors duration-200"
       >
-        Write your first article →
+        {t('feed.writeFirst')}
       </Link>
     </div>
   )

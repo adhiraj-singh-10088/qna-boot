@@ -1,6 +1,9 @@
-import React, { useState, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import React, { useEffect, useRef, useState } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import AppLayout from "../components/layout/AppLayout"
+import { useAuth } from "../context/AuthContext"
+import { createPost, fetchPost, updatePost } from "../api/posts"
 
 /* ── Icons ───────────────────────────────────────────── */
 function BoldIcon()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg> }
@@ -14,7 +17,6 @@ function H2Icon()     { return <svg width="15" height="15" viewBox="0 0 24 24" f
 function ListIcon()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> }
 function EyeIcon()    { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> }
 function SaveIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> }
-function ArrowLeft()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> }
 function PlusIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> }
 function XIcon()      { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> }
 
@@ -55,6 +57,10 @@ function ToolbarBtn({ item, onAction }) {
 
 export default function CreatePostPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
+  const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+  const editId = searchParams.get("edit")
   const editorRef = useRef(null)
 
   const [title, setTitle]               = useState("")
@@ -67,6 +73,48 @@ export default function CreatePostPage() {
   const [saved, setSaved]               = useState(false)
   const [wordCount, setWordCount]       = useState(0)
   const [publishing, setPublishing]     = useState(false)
+  const [loadingPost, setLoadingPost]   = useState(!!editId)
+  const [initialHtml, setInitialHtml]   = useState(null)
+
+  /* ── Edit mode: prefill the editor with the existing post ─────────── */
+  useEffect(() => {
+    let cancelled = false
+    if (!editId) return undefined
+
+    setLoadingPost(true)
+    fetchPost(editId)
+      .then(({ post }) => {
+        if (cancelled) return
+        if (!post || String(post.author?.id) !== String(user?.id)) {
+          window.alert("You can only edit your own posts.")
+          navigate("/feed")
+          return
+        }
+        setTitle(post.title || "")
+        setSubtitle(post.subtitle || "")
+        setCategory(post.category || "")
+        setTags(Array.isArray(post.tags) ? post.tags : [])
+        // The editor is not mounted while loadingPost is true — stash the HTML
+        // and apply it in the effect below once the editor actually renders.
+        setInitialHtml(post.content || "")
+      })
+      .catch(() => navigate("/feed"))
+      .finally(() => { if (!cancelled) setLoadingPost(false) })
+
+    return () => { cancelled = true }
+  }, [editId, navigate, user?.id])
+
+  /* Edit mode: apply the stashed HTML once the editor is actually mounted */
+  useEffect(() => {
+    if (loadingPost || initialHtml === null) return
+    const editor = editorRef.current
+    if (editor && !editor.innerHTML.trim()) {
+      editor.innerHTML = initialHtml
+      const words = editor.innerText.trim().split(/\s+/).filter(Boolean).length
+      setWordCount(words)
+    }
+    setInitialHtml(null)
+  }, [loadingPost, initialHtml])
 
   const handleInput = () => {
     const text = editorRef.current?.innerText || ""
@@ -90,12 +138,12 @@ export default function CreatePostPage() {
     editorRef.current?.focus()
   }
 
-  const addTag = (t) => {
-    const clean = t.trim()
+  const addTag = (value) => {
+    const clean = value.trim()
     if (clean && !tags.includes(clean) && tags.length < 5) setTags([...tags, clean])
     setTag("")
   }
-  const removeTag = (t) => setTags(tags.filter((x) => x !== t))
+  const removeTag = (value) => setTags(tags.filter((x) => x !== value))
 
   const handleCover = (e) => {
     const file = e.target.files[0]
@@ -107,10 +155,35 @@ export default function CreatePostPage() {
 
   const saveDraft = () => { setSaved(true); setTimeout(() => setSaved(false), 2500) }
 
-  const handlePublish = (e) => {
+  /* ── Publish (create) or save (edit) — real API calls ─────────────── */
+  const handlePublish = async (e) => {
     e.preventDefault()
+    if (publishing) return
+
+    const html = editorRef.current?.innerHTML || ""
+    const text = editorRef.current?.innerText || ""
+    if (!title.trim()) { window.alert(t('create.errorTitle')); return }
+    if (!text.trim())  { window.alert(t('create.errorContent')); return }
+
     setPublishing(true)
-    setTimeout(() => { setPublishing(false); alert("Post published! (frontend demo)") }, 1600)
+    try {
+      const payload = {
+        title: title.trim(),
+        subtitle: subtitle.trim() || undefined,
+        content: html,
+        category: category || undefined,
+        tags,
+      }
+      const res = editId
+        ? await updatePost(editId, payload)
+        : await createPost(payload)
+      navigate(`/post/${res.post.id}`)
+    } catch (err) {
+      if (err.status === 401) window.alert(t('create.loginRequired'))
+      else window.alert(err.message)
+    } finally {
+      setPublishing(false)
+    }
   }
 
   const readTime = Math.max(1, Math.ceil(wordCount / 200))
@@ -121,25 +194,25 @@ export default function CreatePostPage() {
         <header className="sticky top-0 z-40 bg-[#0e0e0e]/95 backdrop-blur-md border-b border-[#2a2520] pb-4 pt-4 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-[#e8e0d4] text-2xl font-bold" style={{ fontFamily: "'Georgia', serif" }}>
-              Write an Article
+              {editId ? t('create.editTitle') : t('create.title')}
             </h1>
             <p className="font-sans-ui text-xs text-[#7a7060] mt-1">
-              {wordCount} words · {readTime} min read
+              {t('post.words', { count: wordCount })} · {t('post.minRead', { count: readTime })}
             </p>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {saved && (
               <span className="font-sans-ui text-xs text-green-500 flex items-center gap-1">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                Saved
+                {t('create.saved')}
               </span>
             )}
             <button
               onClick={saveDraft}
               className="flex items-center gap-2 font-sans-ui text-sm px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880] hover:border-[#c9a84c]/60 hover:text-[#c9a84c] transition-all duration-200"
             >
-              <SaveIcon /> <span className="hidden sm:inline">Save Draft</span>
+              <SaveIcon /> <span className="hidden sm:inline">{t('create.saveDraft')}</span>
             </button>
             <button
               onClick={() => setPreview(!preview)}
@@ -149,7 +222,7 @@ export default function CreatePostPage() {
                   : "border-[#3a3329] text-[#a09880] hover:border-[#c9a84c]/60 hover:text-[#c9a84c]"
               }`}
             >
-              <EyeIcon /> <span className="hidden sm:inline">{preview ? "Edit" : "Preview"}</span>
+              <EyeIcon /> <span className="hidden sm:inline">{preview ? t('create.edit') : t('create.preview')}</span>
             </button>
             <button
               onClick={handlePublish}
@@ -162,12 +235,16 @@ export default function CreatePostPage() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
               ) : null}
-              Publish
+              {publishing
+                ? (editId ? t('create.saving') : t('create.publishing'))
+                : (editId ? t('create.save') : t('create.publish'))}
             </button>
           </div>
         </header>
 
-        {preview ? (
+        {loadingPost ? (
+          <p className="text-center text-[#7a7060] text-sm font-sans-ui py-20">{t('common.loading')}</p>
+        ) : preview ? (
           /* ── PREVIEW MODE ─────────────────────────────────── */
           <article>
             {coverPreview && (
@@ -177,30 +254,30 @@ export default function CreatePostPage() {
               <p className="font-sans-ui text-xs tracking-[0.2em] text-[#c9a84c] uppercase mb-4">{category}</p>
             )}
             <h1 className="text-4xl lg:text-5xl font-bold text-[#f5e6c8] leading-tight mb-4">
-              {title || <span className="text-[#2e2a24]">Your title here…</span>}
+              {title || <span className="text-[#2e2a24]">{t('create.titlePlaceholder')}</span>}
             </h1>
             {subtitle && <p className="text-lg text-[#7a7060] mb-6 leading-relaxed">{subtitle}</p>}
             <div className="flex items-center gap-3 mb-10 pb-8 border-b border-[#2a2520]">
               <div className="w-9 h-9 rounded-full bg-[#2a2218] border border-[#3a3020] flex items-center justify-center text-xs font-bold text-[#c9a84c]">
-                U
+                {(user?.full_name || user?.username || "U").charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-sm font-semibold text-[#e8e0d4]">You</p>
+                <p className="text-sm font-semibold text-[#e8e0d4]">{user?.full_name || user?.username}</p>
                 <p className="font-sans-ui text-xs text-[#5a5248]">
-                  {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {readTime} min read
+                  {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} · {t('post.minRead', { count: readTime })}
                 </p>
               </div>
               {tags.length > 0 && (
                 <div className="ml-auto flex gap-2">
-                  {tags.map((t) => (
-                    <span key={t} className="font-sans-ui text-[10px] px-2.5 py-1 rounded-full bg-[#2a2218] border border-[#3a3020] text-[#c9a84c]">{t}</span>
+                  {tags.map((tg) => (
+                    <span key={tg} className="font-sans-ui text-[10px] px-2.5 py-1 rounded-full bg-[#2a2218] border border-[#3a3020] text-[#c9a84c]">{tg}</span>
                   ))}
                 </div>
               )}
             </div>
             <div
               className="text-[#c8bea8] leading-relaxed text-base"
-              dangerouslySetInnerHTML={{ __html: editorRef.current?.innerHTML || "<p style='color:#3a3329'>Your story starts here…</p>" }}
+              dangerouslySetInnerHTML={{ __html: editorRef.current?.innerHTML || "" }}
             />
           </article>
         ) : (
@@ -214,11 +291,11 @@ export default function CreatePostPage() {
                   <img src={coverPreview} alt="cover" className="w-full h-56 object-cover rounded-2xl" />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center gap-3">
                     <label className="cursor-pointer font-sans-ui text-sm px-4 py-2 rounded-full bg-[#c9a84c] text-[#0e0e0e] font-semibold">
-                      Change Cover
+                      {t('create.changeCover')}
                       <input type="file" accept="image/*" onChange={handleCover} className="hidden" />
                     </label>
                     <button onClick={() => setCoverPreview(null)} className="font-sans-ui text-sm px-4 py-2 rounded-full bg-[#2a2520] text-[#e8e0d4] border border-[#3a3329]">
-                      Remove
+                      {t('create.remove')}
                     </button>
                   </div>
                 </div>
@@ -227,8 +304,8 @@ export default function CreatePostPage() {
                   <div className="w-10 h-10 rounded-full bg-[#2a2218] border border-[#3a3020] flex items-center justify-center text-[#c9a84c] mb-3 group-hover:border-[#c9a84c]/60 transition-colors">
                     <ImageIcon />
                   </div>
-                  <p className="font-sans-ui text-sm text-[#7a7060] group-hover:text-[#a09880] transition-colors">Add a cover image</p>
-                  <p className="font-sans-ui text-xs text-[#3a3329] mt-1">PNG, JPG up to 10MB</p>
+                  <p className="font-sans-ui text-sm text-[#7a7060] group-hover:text-[#a09880] transition-colors">{t('create.addCover')}</p>
+                  <p className="font-sans-ui text-xs text-[#3a3329] mt-1">{t('create.coverHint')}</p>
                   <input type="file" accept="image/*" onChange={handleCover} className="hidden" />
                 </label>
               )}
@@ -242,7 +319,7 @@ export default function CreatePostPage() {
                 className="font-sans-ui text-xs bg-[#1a1814] border border-[#3a3329] rounded-xl px-4 py-2.5 text-[#a09880] focus:outline-none focus:border-[#c9a84c]/50 cursor-pointer transition-all appearance-none pr-8"
                 style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7060' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center" }}
               >
-                <option value="">Select a category…</option>
+                <option value="">{t('create.selectCategory')}</option>
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -252,7 +329,7 @@ export default function CreatePostPage() {
               rows={2}
               value={title}
               onChange={(e) => { setTitle(e.target.value); setSaved(false) }}
-              placeholder="Your story title…"
+              placeholder={t('create.titlePlaceholder')}
               className="w-full bg-transparent resize-none text-4xl lg:text-5xl font-bold text-[#f5e6c8] placeholder-[#2e2a24] focus:outline-none leading-tight mb-4 border-none"
             />
 
@@ -261,7 +338,7 @@ export default function CreatePostPage() {
               rows={2}
               value={subtitle}
               onChange={(e) => { setSubtitle(e.target.value); setSaved(false) }}
-              placeholder="Add a subtitle or short description…"
+              placeholder={t('create.subtitlePlaceholder')}
               className="w-full bg-transparent resize-none text-lg text-[#7a7060] placeholder-[#2a2520] focus:outline-none leading-relaxed mb-8 border-none"
             />
 
@@ -287,7 +364,7 @@ export default function CreatePostPage() {
               suppressContentEditableWarning
               onInput={handleInput}
               className="min-h-[420px] text-base text-[#c8bea8] leading-relaxed focus:outline-none [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-[#f5e6c8] [&_h1]:mt-6 [&_h1]:mb-3 [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:text-[#e8e0d4] [&_h2]:mt-5 [&_h2]:mb-2 [&_blockquote]:border-l-2 [&_blockquote]:border-[#c9a84c]/40 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-[#7a7060] [&_pre]:bg-[#161410] [&_pre]:border [&_pre]:border-[#2e2a24] [&_pre]:rounded-xl [&_pre]:p-4 [&_pre]:text-[#c9a84c] [&_pre]:text-sm [&_pre]:font-mono [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:space-y-1 [&_a]:text-[#c9a84c] [&_a]:underline [&_img]:rounded-xl [&_img]:max-w-full [&_img]:my-4 empty:before:content-[attr(data-placeholder)] empty:before:text-[#2e2a24] empty:before:pointer-events-none"
-              data-placeholder="Start writing your story…"
+              data-placeholder={t('create.contentPlaceholder')}
             />
 
             {/* Divider */}
@@ -296,13 +373,13 @@ export default function CreatePostPage() {
             {/* Tags */}
             <div>
               <p className="font-sans-ui text-xs tracking-[0.2em] text-[#7a7060] uppercase mb-4">
-                Tags <span className="normal-case tracking-normal text-[#3a3329]">(up to 5)</span>
+                {t('create.tags')} <span className="normal-case tracking-normal text-[#3a3329]">{t('create.tagsHint')}</span>
               </p>
               <div className="flex flex-wrap gap-2 mb-3">
-                {tags.map((t) => (
-                  <span key={t} className="flex items-center gap-1.5 font-sans-ui text-xs px-3 py-1.5 rounded-full bg-[#2a2218] border border-[#3a3020] text-[#c9a84c]">
-                    {t}
-                    <button onClick={() => removeTag(t)} className="text-[#c9a84c]/60 hover:text-[#c9a84c] transition-colors">
+                {tags.map((tg) => (
+                  <span key={tg} className="flex items-center gap-1.5 font-sans-ui text-xs px-3 py-1.5 rounded-full bg-[#2a2218] border border-[#3a3020] text-[#c9a84c]">
+                    {tg}
+                    <button onClick={() => removeTag(tg)} className="text-[#c9a84c]/60 hover:text-[#c9a84c] transition-colors">
                       <XIcon />
                     </button>
                   </span>
@@ -314,7 +391,7 @@ export default function CreatePostPage() {
                       value={tag}
                       onChange={(e) => setTag(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTag(tag) } }}
-                      placeholder="Add a tag…"
+                      placeholder={t('create.addTag')}
                       className="font-sans-ui text-xs bg-[#1a1814] border border-[#3a3329] rounded-full px-3 py-1.5 text-[#a09880] placeholder-[#3a3329] focus:outline-none focus:border-[#c9a84c]/50 w-32 transition-all"
                     />
                     <button
@@ -326,7 +403,7 @@ export default function CreatePostPage() {
                   </div>
                 )}
               </div>
-              <p className="font-sans-ui text-[10px] text-[#3a3329]">Press Enter or comma to add · Tags help readers find your story</p>
+              <p className="font-sans-ui text-[10px] text-[#3a3329]">{t('create.tagsHelp')}</p>
             </div>
 
           </div>

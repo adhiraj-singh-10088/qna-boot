@@ -2,6 +2,7 @@ import React from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider, useAuth } from "./context/AuthContext"
 import { MessagesProvider } from "./context/MessagesContext"
+import { NotificationsProvider } from "./context/NotificationsContext"
 
 // Landing / marketing pages
 import HomePage       from "./pages/HomePage"
@@ -13,6 +14,8 @@ import FeedPage     from "./pages/FeedPage"
 import DiscoverPage from "./pages/DiscoverPage"
 import ProfilePage  from "./pages/ProfilePage"
 import MessagesPage from "./pages/MessagesPage"
+import PostPage     from "./pages/PostPage"
+import NotificationsPage from "./pages/NotificationsPage"
 
 import GuestPrompt    from "./components/ui/GuestPrompt"
 
@@ -27,6 +30,7 @@ export default function App() {
   return (
     <AuthProvider>
       <MessagesProvider>
+      <NotificationsProvider>
       <BrowserRouter>
         <Routes>
           {/* Public landing page — redirects logged-in users to /feed (handled inside HomePage) */}
@@ -34,6 +38,9 @@ export default function App() {
 
           {/* Standalone login page — redirects logged-in users to /feed (handled inside LoginPage) */}
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Public post permalink — this is what shared URLs point to */}
+          <Route path="/post/:id" element={<PostPage />} />
 
           {/* Authenticated app routes & public feed */}
           <Route path="/feed"     element={<FeedPage />} />
@@ -45,6 +52,12 @@ export default function App() {
           <Route path="/profile"  element={
             <GuestGuard title="Your Profile" message="Create an account to save your favorite articles, track your reading history, and build your own audience.">
               <ProfilePage />
+            </GuestGuard>
+          } />
+          <Route path="/u/:username" element={<ProfilePage />} />
+          <Route path="/notifications" element={
+            <GuestGuard title="Your Notifications" message="Sign in to see who liked your posts, commented, or started following you.">
+              <NotificationsPage />
             </GuestGuard>
           } />
           <Route path="/messages" element={
@@ -62,8 +75,8 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </NotificationsProvider>
       </MessagesProvider>
     </AuthProvider>
   )
 }
-

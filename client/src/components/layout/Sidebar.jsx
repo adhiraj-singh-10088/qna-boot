@@ -1,6 +1,9 @@
 import { NavLink, useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { useMessages } from "../../context/MessagesContext"
+import { useNotifications } from "../../context/NotificationsContext"
 import MoreMenu from "./MoreMenu"
+import LanguageSwitcher from "../ui/LanguageSwitcher"
 
 /* ── Icon components (inline SVG — no extra lib needed) ─────────────── */
 const HomeIcon = ({ filled }) =>
@@ -21,13 +24,6 @@ const SearchIcon = () => (
   </svg>
 )
 
-const DiscoverIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}>
-    <circle cx="12" cy="12" r="9" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 9.5l-3 6-3-6 6-3-3 6" />
-  </svg>
-)
-
 const MessagesIcon = ({ filled }) =>
   filled ? (
     <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
@@ -36,6 +32,17 @@ const MessagesIcon = ({ filled }) =>
   ) : (
     <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7A2.5 2.5 0 0117.5 16H9l-5 4V6.5z" />
+    </svg>
+  )
+
+const NotificationsIcon = ({ filled }) =>
+  filled ? (
+    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
+      <path d="M12 22a2.5 2.5 0 002.45-2h-4.9A2.5 2.5 0 0012 22zm7-6v-5a7 7 0 00-5-6.7V4a2 2 0 10-4 0v.3A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8M13.7 20a2 2 0 01-3.4 0" />
     </svg>
   )
 
@@ -60,16 +67,33 @@ const ProfileIcon = ({ filled }) =>
 
 /* ── Nav items configuration ────────────────────────────────────────── */
 const NAV_ITEMS = [
-  { to: "/feed",      label: "Home",     Icon: HomeIcon,     hasFilledVariant: true  },
-  { to: "/search",    label: "Search",   Icon: SearchIcon,   hasFilledVariant: false },
-  { to: "/messages",  label: "Messages", Icon: MessagesIcon, hasFilledVariant: true  },
-  { to: "/create",    label: "Create",   Icon: CreateIcon,   hasFilledVariant: false },
-  { to: "/profile",   label: "Profile",  Icon: ProfileIcon,  hasFilledVariant: true  },
+  { to: "/feed",          label: "home",          Icon: HomeIcon,          hasFilledVariant: true  },
+  { to: "/search",        label: "search",        Icon: SearchIcon,        hasFilledVariant: false },
+  { to: "/messages",      label: "messages",      Icon: MessagesIcon,      hasFilledVariant: true  },
+  { to: "/notifications", label: "notifications", Icon: NotificationsIcon, hasFilledVariant: true  },
+  { to: "/create",        label: "create",        Icon: CreateIcon,        hasFilledVariant: false },
+  { to: "/profile",       label: "profile",       Icon: ProfileIcon,       hasFilledVariant: true  },
 ]
+
+function Badge({ count }) {
+  if (!count) return null
+  return (
+    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#c9a84c] text-[#0e0e0e] text-[10px] font-bold flex items-center justify-center leading-none">
+      {count > 9 ? "9+" : count}
+    </span>
+  )
+}
 
 export default function Sidebar() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { unreadCount } = useMessages()
+  const { unread: unreadNotifications } = useNotifications()
+
+  const badgeFor = (to) =>
+    to === "/messages" ? unreadCount
+    : to === "/notifications" ? unreadNotifications
+    : 0
 
   return (
     /*
@@ -88,13 +112,11 @@ export default function Sidebar() {
         className="flex items-center gap-3 mb-10 px-2 group"
         aria-label="Inkspace home"
       >
-        {/* Logo mark — golden "I" monogram */}
         <span className="flex-shrink-0 w-9 h-9 rounded-lg bg-[#c9a84c] flex items-center justify-center
                          text-[#0e0e0e] font-bold text-lg leading-none select-none
                          group-hover:scale-105 transition-transform duration-200">
           I
         </span>
-        {/* Wordmark — only visible on xl */}
         <span className="hidden xl:block font-bold text-xl tracking-tight text-[#e8e0d4]"
               style={{ fontFamily: "'Georgia', serif" }}>
           Inkspace
@@ -118,18 +140,12 @@ export default function Sidebar() {
           >
             {({ isActive }) => (
               <>
-                {/* Icon — filled variant when active if available */}
                 <span className="relative flex-shrink-0">
                   <Icon filled={hasFilledVariant && isActive} />
-                  {to === "/messages" && unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-[#c9a84c] text-[#0e0e0e] text-[10px] font-bold flex items-center justify-center leading-none">
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                  )}
+                  <Badge count={badgeFor(to)} />
                 </span>
-                {/* Label — only visible on xl */}
                 <span className="hidden xl:block text-[15px] font-medium tracking-wide">
-                  {label}
+                  {t(`nav.${label}`)}
                 </span>
               </>
             )}
@@ -137,8 +153,13 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* ── Bottom: Settings / More ─────────────────────────────────── */}
-      <MoreMenu />
+      {/* ── Bottom: language + settings/more ────────────────────────── */}
+      <div className="mt-4 flex flex-col gap-2">
+        <div className="hidden xl:flex justify-start px-2 pb-1">
+          <LanguageSwitcher />
+        </div>
+        <MoreMenu />
+      </div>
     </aside>
   )
 }

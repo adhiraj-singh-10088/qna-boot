@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
 import AuthPanel from '../components/AuthPanel'
 
@@ -14,6 +15,7 @@ import AuthPanel from '../components/AuthPanel'
  */
 export default function LoginPage() {
   const { isAuthenticated } = useAuth()
+  const { t } = useTranslation()
   const navigate            = useNavigate()
   const [searchParams]      = useSearchParams()
   const justRegistered      = searchParams.get('registered') === '1'
@@ -64,10 +66,10 @@ export default function LoginPage() {
           </svg>
           <div>
             <p className="text-emerald-300 text-sm font-medium font-sans-ui">
-              Account created successfully!
+              {t('auth.accountCreated')}
             </p>
             <p className="text-emerald-500 text-xs font-sans-ui mt-0.5">
-              Sign in below to start reading and writing.
+              {t('auth.signinBelow')}
             </p>
           </div>
         </div>

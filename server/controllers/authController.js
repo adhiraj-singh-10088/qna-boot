@@ -5,22 +5,38 @@ import pool from "../utils/db.js";
 
 dotenv.config();
 
+function publicUser(row) {
+  return {
+    id: row.id ?? row.uid,
+    email: row.email,
+    username: row.username,
+    full_name: row.full_name || null,
+    bio: row.bio || null,
+    is_private: Boolean(row.is_private),
+  };
+}
+
 export async function signup(req, res) {
   // Validates the registration details, hashes the password, and creates a user record.
-  const { email, dob, username, password } = req.body;
+  const { email, dob, username, password, full_name } = req.body;
   if (!email || !dob || !username || !password) {
     return res.status(400).json({ error: "Missing required fields" });
   }
+
+  const cleanUsername = String(username).toLowerCase().trim();
+  const cleanFullName = typeof full_name === "string" && full_name.trim()
+    ? full_name.trim().slice(0, 100)
+    : null;
 
   try {
     const hashed = await bcrypt.hash(password, 10);
 
     const [result] = await pool.execute(
-      "INSERT INTO users (email, dob, username, password) VALUES (?, ?, ?, ?)",
-      [email, dob, username, hashed],
+      "INSERT INTO users (email, dob, username, password, full_name) VALUES (?, ?, ?, ?, ?)",
+      [email, dob, cleanUsername, hashed, cleanFullName],
     );
 
-    return res.status(201).json({ id: result.insertId, email, username });
+    return res.status(201).json({ id: result.insertId, email, username: cleanUsername, full_name: cleanFullName });
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") {
       return res
@@ -41,24 +57,20 @@ export async function login(req, res) {
 
   try {
     const [rows] = await pool.execute(
-      "SELECT * FROM users WHERE email = ? LIMIT 1",
+      "SELECT uid AS id, email, username, password, dob, full_name, bio, is_private, created_at FROM users WHERE email = ? LIMIT 1",
       [email],
     );
     const user = rows && rows[0];
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
-    const storedHash = user.password || user.password_hash || user.pass;
+    const storedHash = user.password;
     if (!storedHash)
       return res.status(500).json({ error: "Password not set for user" });
 
     const match = await bcrypt.compare(password, storedHash);
     if (!match) return res.status(401).json({ error: "Invalid credentials" });
 
-    const safeUser = {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-    };
+    const safeUser = publicUser(user);
 
     const token = jwt.sign(
       { id: user.id, email: user.email, username: user.username },
@@ -67,6 +79,23 @@ export async function login(req, res) {
     );
 
     return res.json({ message: "Login successful", token, user: safeUser });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
+
+export async function getMe(req, res) {
+  // Returns the authenticated user's fresh profile straight from the database.
+  try {
+    const [rows] = await pool.execute(
+      "SELECT uid AS id, email, username, dob, full_name, bio, is_private, created_at FROM users WHERE uid = ? LIMIT 1",
+      [req.user.id],
+    );
+    const user = rows && rows[0];
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    return res.json({ user: publicUser(user) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Server error" });

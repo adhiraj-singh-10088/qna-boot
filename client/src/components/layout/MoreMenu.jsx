@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
+import { useNotifications } from "../../context/NotificationsContext"
+import LanguageSwitcher from "../ui/LanguageSwitcher"
 
 const SETTINGS_KEY = "inkspace_settings"
 
@@ -27,6 +30,14 @@ function IconBookmark() {
   return (
     <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 4h12v16l-6-3.5L6 20V4z" />
+    </svg>
+  )
+}
+
+function IconBell() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8M13.7 20a2 2 0 01-3.4 0" />
     </svg>
   )
 }
@@ -66,7 +77,9 @@ function Toggle({ on, onToggle, label }) {
 
 export default function MoreMenu() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { logout, isAuthenticated } = useAuth()
+  const { unread } = useNotifications()
   const [open, setOpen] = useState(false)
   const [view, setView] = useState("menu")
   const [settings, setSettings] = useState(loadSettings)
@@ -77,7 +90,7 @@ export default function MoreMenu() {
   }, [settings])
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return undefined
     function onPointer(event) {
       if (!rootRef.current?.contains(event.target)) {
         setOpen(false)
@@ -118,13 +131,13 @@ export default function MoreMenu() {
         className={`flex items-center gap-4 px-3 py-3 rounded-xl w-full
                     transition-all duration-200
                     ${open ? "bg-[#1f1c16] text-[#c9a84c]" : "text-[#7a7060] hover:bg-[#161616] hover:text-[#e8e0d4]"}`}
-        aria-label="More options"
+        aria-label={t('nav.more')}
         aria-expanded={open}
       >
         <svg viewBox="0 0 24 24" className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
         </svg>
-        <span className="hidden xl:block text-[15px] font-medium">More</span>
+        <span className="hidden xl:block text-[15px] font-medium">{t('nav.more')}</span>
       </button>
 
       {open && (
@@ -134,12 +147,24 @@ export default function MoreMenu() {
         >
           {view === "menu" && (
             <div className="p-2">
-              <button type="button" className={itemClass} onClick={() => setView("settings")}>
-                <IconSettings />
-                Settings
-              </button>
-              {isAuthenticated ? (
+              {isAuthenticated && (
                 <>
+                  <button
+                    type="button"
+                    className={itemClass}
+                    onClick={() => {
+                      setOpen(false)
+                      navigate("/notifications")
+                    }}
+                  >
+                    <IconBell />
+                    <span className="flex-1">{t('nav.notifications')}</span>
+                    {unread > 0 && (
+                      <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-[#c9a84c] text-[#0e0e0e] text-[10px] font-bold flex items-center justify-center leading-none">
+                        {unread > 9 ? "9+" : unread}
+                      </span>
+                    )}
+                  </button>
                   <button
                     type="button"
                     className={itemClass}
@@ -149,12 +174,21 @@ export default function MoreMenu() {
                     }}
                   >
                     <IconBookmark />
-                    Saved
+                    {t('nav.saved')}
                   </button>
                   <button type="button" className={itemClass} onClick={() => setView("activity")}>
                     <IconActivity />
-                    Your activity
+                    {t('nav.yourActivity')}
                   </button>
+                  <div className="my-1 h-px bg-[#2a2a2a]" />
+                </>
+              )}
+              <button type="button" className={itemClass} onClick={() => setView("settings")}>
+                <IconSettings />
+                {t('nav.settings')}
+              </button>
+              {isAuthenticated ? (
+                <>
                   <div className="my-1 h-px bg-[#2a2a2a]" />
                   <button
                     type="button"
@@ -162,7 +196,7 @@ export default function MoreMenu() {
                     onClick={handleLogout}
                   >
                     <IconLogout />
-                    Log out
+                    {t('common.logOut')}
                   </button>
                 </>
               ) : (
@@ -176,7 +210,7 @@ export default function MoreMenu() {
                     <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" />
                     </svg>
-                    Log in
+                    {t('common.logIn')}
                   </button>
                   <button
                     type="button"
@@ -186,7 +220,7 @@ export default function MoreMenu() {
                     <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M8 7a4 4 0 100-8 4 4 0 000 8zM20 8v6M23 11h-6" />
                     </svg>
-                    Create Account
+                    {t('common.createAccount')}
                   </button>
                 </>
               )}
@@ -200,27 +234,32 @@ export default function MoreMenu() {
                   type="button"
                   onClick={() => setView("menu")}
                   className="text-[#7a7060] hover:text-[#e8e0d4] p-1"
-                  aria-label="Back"
+                  aria-label={t('common.back')}
                 >
                   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <h2 className="text-sm font-semibold font-sans-ui text-[#e8e0d4]">Settings</h2>
+                <h2 className="text-sm font-semibold font-sans-ui text-[#e8e0d4]">{t('nav.settings')}</h2>
               </div>
+
+              {/* Language switcher */}
+              <div className="flex items-center justify-between gap-4 py-2">
+                <span className="text-sm font-sans-ui text-[#e8e0d4]">{t('nav.language')}</span>
+                <LanguageSwitcher />
+              </div>
+
               <Toggle
-                label="Notifications"
+                label={t('nav.notificationsToggle')}
                 on={settings.notifications}
                 onToggle={() => setSettings((s) => ({ ...s, notifications: !s.notifications }))}
               />
               <Toggle
-                label="Show activity status"
+                label={t('nav.activityToggle')}
                 on={settings.activityStatus}
                 onToggle={() => setSettings((s) => ({ ...s, activityStatus: !s.activityStatus }))}
               />
-              <p className="text-[11px] text-[#7a7060] font-sans-ui mt-2">
-                Saved on this device. Syncing comes with the backend later.
-              </p>
+              <p className="text-[11px] text-[#7a7060] font-sans-ui mt-2">{t('nav.settingsHint')}</p>
             </div>
           )}
 
@@ -231,17 +270,15 @@ export default function MoreMenu() {
                   type="button"
                   onClick={() => setView("menu")}
                   className="text-[#7a7060] hover:text-[#e8e0d4] p-1"
-                  aria-label="Back"
+                  aria-label={t('common.back')}
                 >
                   <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <h2 className="text-sm font-semibold font-sans-ui text-[#e8e0d4]">Your activity</h2>
+                <h2 className="text-sm font-semibold font-sans-ui text-[#e8e0d4]">{t('nav.yourActivity')}</h2>
               </div>
-              <p className="text-sm text-[#7a7060] font-sans-ui leading-relaxed">
-                Likes, comments, and profile visits will appear here once the backend is connected.
-              </p>
+              <p className="text-sm text-[#7a7060] font-sans-ui leading-relaxed">{t('nav.activityHint')}</p>
             </div>
           )}
         </div>

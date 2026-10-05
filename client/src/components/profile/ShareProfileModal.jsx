@@ -3,8 +3,8 @@ import { useEffect, useState } from "react"
 export default function ShareProfileModal({ isOpen, onClose, username, name }) {
   const [copied, setCopied] = useState(false)
   const profileUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/profile`
-    : "/profile"
+    ? `${window.location.origin}/u/${username || ""}`
+    : `/u/${username || ""}`
 
   useEffect(() => {
     if (!isOpen) return

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { signupUser, loginUser } from '../api/auth'
 import { useAuth } from '../context/AuthContext'
+import { useTranslation } from 'react-i18next'
 
 /* Google "G" coloured SVG icon */
 function GoogleIcon() {
@@ -44,6 +45,7 @@ function EyeIcon({ open }) {
 export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, justRegistered = false }) {
   const navigate = useNavigate()
   const { login } = useAuth()
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -70,7 +72,7 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
       } else {
         // ── Sign Up → redirect to /login with a success message ─────
         const dobString = `${dob.year}-${String(dob.month).padStart(2, '0')}-${String(dob.day).padStart(2, '0')}`
-        await signupUser({ email, dob: dobString, username, password })
+        await signupUser({ email, dob: dobString, username, password, full_name: name })
         // Do NOT auto-login. Send user to login page with a prompt.
         navigate('/login?registered=1')          // ← after signup, go to login
       }
@@ -97,7 +99,7 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
                   : 'text-[#7a7060] hover:text-[#a09880]'
               }`}
             >
-              {mode === 'signin' ? 'Sign In' : 'Create Account'}
+              {mode === 'signin' ? t('common.signIn') : t('common.createAccount')}
             </button>
           ))}
         </div>
@@ -106,14 +108,14 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
       {/* ── Heading ────────────────────────────────────────────────────── */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-[#f5e6c8] mb-1">
-          {isSignIn 
-            ? (justRegistered ? 'Sign in' : 'Welcome back.') 
-            : 'Join Inkspace.'}
+          {isSignIn
+            ? (justRegistered ? t('auth.signinLink') : t('auth.welcomeBack'))
+            : t('auth.joinTitle')}
         </h2>
         <p className="font-sans-ui text-sm text-[#5a5248]">
           {isSignIn
-            ? (justRegistered ? 'Enter your details to access your new account.' : 'Sign in to continue to your feed.')
-            : 'Create an account and start writing today.'}
+            ? t('auth.signinSubtitle')
+            : t('auth.joinSubtitle')}
         </p>
       </div>
 
@@ -131,13 +133,13 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
       {/* ── Google OAuth ───────────────────────────────────────────────── */}
       <button className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-[#1e1c18] border border-[#2e2a24] text-[#c8bea8] font-sans-ui text-sm hover:border-[#4a4438] hover:bg-[#242018] transition-all duration-200 mb-5">
         <GoogleIcon />
-        Continue with Google
+        {t('auth.google')}
       </button>
 
       {/* ── Divider ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-4 mb-5">
         <div className="flex-1 h-px bg-[#2a2520]" />
-        <span className="font-sans-ui text-xs text-[#4a4438]">or continue with email</span>
+        <span className="font-sans-ui text-xs text-[#4a4438]">{t('auth.orEmail')}</span>
         <div className="flex-1 h-px bg-[#2a2520]" />
       </div>
 
@@ -148,13 +150,13 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
         {!isSignIn && (
           <div>
             <label className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase block mb-2">
-              Full Name
+              {t('auth.fullName')}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
+              placeholder={t('auth.namePlaceholder')}
               required={!isSignIn}
               className="w-full bg-[#1a1814] border border-[#2e2a24] rounded-xl px-4 py-3 text-sm text-[#e8e0d4] placeholder-[#3a3329] font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all"
             />
@@ -165,7 +167,7 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
         {!isSignIn && (
           <div>
             <label className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase block mb-2">
-              Username
+              {t('auth.username')}
             </label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5a5248] font-sans-ui text-sm select-none">@</span>
@@ -173,7 +175,7 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value.replace(/\s/g, '').toLowerCase())}
-                placeholder="yourhandle"
+                placeholder={t('auth.usernamePlaceholder')}
                 required={!isSignIn}
                 className="w-full bg-[#1a1814] border border-[#2e2a24] rounded-xl pl-8 pr-4 py-3 text-sm text-[#e8e0d4] placeholder-[#3a3329] font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all"
               />
@@ -204,13 +206,13 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
-                Date of Birth
+                {t('auth.dob')}
               </label>
               <div className="flex gap-2">
                 <select value={dob.day} onChange={(e) => setDob(p => ({ ...p, day: e.target.value }))} required={!isSignIn}
                   style={{ color: dob.day ? '#e8e0d4' : '#3a3329' }}
                   className="flex-1 bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer">
-                  <option value="" disabled style={{ color: '#3a3329' }}>DD</option>
+                  <option value="" disabled style={{ color: '#3a3329' }}>{t('auth.dd')}</option>
                   {Array.from({ length: maxDays }, (_, i) => i + 1).map(d => (
                     <option key={d} value={d} style={{ color: '#e8e0d4', background: '#1a1814' }}>{String(d).padStart(2, '0')}</option>
                   ))}
@@ -218,7 +220,7 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
                 <select value={dob.month} onChange={handleMonth} required={!isSignIn}
                   style={{ color: dob.month ? '#e8e0d4' : '#3a3329' }}
                   className="flex-[1.4] bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer">
-                  <option value="" disabled style={{ color: '#3a3329' }}>Month</option>
+                  <option value="" disabled style={{ color: '#3a3329' }}>{t('auth.mm')}</option>
                   {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
                     <option key={m} value={i + 1} style={{ color: '#e8e0d4', background: '#1a1814' }}>{m}</option>
                   ))}
@@ -226,7 +228,7 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
                 <select value={dob.year} onChange={handleYear} required={!isSignIn}
                   style={{ color: dob.year ? '#e8e0d4' : '#3a3329' }}
                   className="flex-[1.2] bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer">
-                  <option value="" disabled style={{ color: '#3a3329' }}>YYYY</option>
+                  <option value="" disabled style={{ color: '#3a3329' }}>{t('auth.yyyy')}</option>
                   {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map(y => (
                     <option key={y} value={y} style={{ color: '#e8e0d4', background: '#1a1814' }}>{y}</option>
                   ))}
@@ -239,7 +241,7 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
         {/* Email */}
         <div>
           <label className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase block mb-2">
-            Email Address
+            {t('auth.email')}
           </label>
           <input
             type="email"
@@ -255,11 +257,11 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase">
-              Password
+              {t('auth.password')}
             </label>
             {isSignIn && (
               <button type="button" className="font-sans-ui text-xs text-[#c9a84c] hover:text-[#e2c97e] transition-colors">
-                Forgot password?
+                {t('auth.forgot')}
               </button>
             )}
           </div>
@@ -303,8 +305,8 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
             </svg>
           )}
           {loading
-            ? (isSignIn ? 'Signing in…' : 'Creating account…')
-            : (isSignIn ? 'Sign In to Inkspace' : 'Create Free Account')}
+            ? (isSignIn ? t('auth.signingIn') : t('auth.creating'))
+            : (isSignIn ? t('auth.signinCta') : t('auth.signupCta'))}
         </button>
       </form>
 
@@ -312,15 +314,15 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
       {!lockedMode && (
         <p className="font-sans-ui text-xs text-center text-[#4a4438] mt-5">
           {isSignIn ? (
-            <>New to Inkspace?{' '}
+            <>{t('auth.newHere')}{' '}
               <button onClick={() => setAuthMode('signup')} className="text-[#c9a84c] hover:text-[#e2c97e] font-medium transition-colors">
-                Create a free account
+                {t('auth.createFree')}
               </button>
             </>
           ) : (
-            <>Already have an account?{' '}
+            <>{t('auth.haveAccount')}{' '}
               <button onClick={() => setAuthMode('signin')} className="text-[#c9a84c] hover:text-[#e2c97e] font-medium transition-colors">
-                Sign in
+                {t('auth.signinLink')}
               </button>
             </>
           )}
@@ -329,9 +331,9 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
 
       {lockedMode && (
         <p className="font-sans-ui text-xs text-center text-[#4a4438] mt-5">
-          Don't have an account?{' '}
+          {t('guest.noAccount')}{' '}
           <a href="/" className="text-[#c9a84c] hover:text-[#e2c97e] font-medium transition-colors">
-            Create one free
+            {t('guest.createOneFree')}
           </a>
         </p>
       )}
@@ -342,7 +344,7 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
           onClick={() => navigate('/feed')}
           className="font-sans-ui text-xs text-[#7a7060] hover:text-[#e8e0d4] transition-colors"
         >
-          Explore as Guest &rarr;
+          {t('guest.exploreGuest')} &rarr;
         </button>
       </div>
     </div>

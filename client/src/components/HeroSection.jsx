@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import AuthPanel from './AuthPanel'
 
-const TAGS = ['Long-form articles', 'Editorials', 'Book reviews', 'Newsletters', 'Poetry', 'Opinion pieces', 'Essays']
+const TAGS = ['longForm', 'editorials', 'bookReviews', 'newsletters', 'poetry', 'opinion', 'essays']
 
 const QUOTES = [
   { text: '"The pen is the tongue of the mind."', author: '— MIGUEL DE CERVANTES' },
@@ -10,6 +11,7 @@ const QUOTES = [
 ]
 
 export default function HeroSection({ authMode, setAuthMode }) {
+  const { t } = useTranslation()
   const [quoteIdx, setQuoteIdx] = useState(0)
   const [quoteVisible, setQuoteVisible] = useState(true)
 
@@ -54,23 +56,22 @@ export default function HeroSection({ authMode, setAuthMode }) {
             <div className="flex items-center gap-3 mb-6 animate-fade-in-up">
               <div className="h-px w-8 bg-[#c9a84c]/50" />
               <p className="font-sans-ui text-xs tracking-[0.25em] text-[#c9a84c] uppercase">
-                Where ideas find their voice
+                {t('landing.eyebrow')}
               </p>
               <div className="h-px w-8 bg-[#c9a84c]/50" />
             </div>
 
             {/* Headline */}
             <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight mb-6 animate-fade-in-up delay-100">
-              <span className="text-[#f5e6c8]">Write. Share.</span>
+              <span className="text-[#f5e6c8]">{t('landing.headline1')}</span>
               <br />
-              <span className="italic text-[#c9a84c]">Inspire.</span>
+              <span className="italic text-[#c9a84c]">{t('landing.headline2')}</span>
             </h1>
 
             {/* Description */}
             <p className="text-base lg:text-lg text-[#7a7060] leading-relaxed max-w-md mb-10 animate-fade-in-up delay-200">
-              Inkspace is the home for writers, thinkers, and readers.{' '}
-              <span className="text-[#c9a84c]">Publish articles</span>, share editorials, and
-              discover voices that matter — all in one beautifully curated space.
+              {t('landing.heroText1')}{' '}
+              <span className="text-[#c9a84c]">{t('landing.publishArticles')}</span>, {t('landing.heroText2')}
             </p>
 
             {/* Tag pills */}
@@ -80,7 +81,7 @@ export default function HeroSection({ authMode, setAuthMode }) {
                   key={tag}
                   className="font-sans-ui text-xs px-3.5 py-1.5 rounded-full border border-[#2e2920] text-[#7a7060] hover:border-[#c9a84c]/50 hover:text-[#c9a84c] transition-all duration-200 cursor-pointer"
                 >
-                  {tag}
+                  {t(`landingTags.${tag}`)}
                 </button>
               ))}
             </div>

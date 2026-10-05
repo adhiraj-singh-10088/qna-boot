@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTranslation } from 'react-i18next'
+import LanguageSwitcher from './ui/LanguageSwitcher'
 
 const NAV_LINKS = [
-  { label: 'Features', href: '#features' },
-  { label: 'Categories', href: '#categories' },
-  { label: 'About', href: '#about' },
+  { label: 'features', href: '#features' },
+  { label: 'categories', href: '#categories' },
+  { label: 'about', href: '#about' },
 ]
 
 const SECTION_IDS = ['features', 'categories', 'about']
@@ -13,6 +15,7 @@ const SECTION_IDS = ['features', 'categories', 'about']
 export default function Navbar({ authMode, setAuthMode }) {
   const navigate = useNavigate()
   const { isAuthenticated, user, logout } = useAuth()
+  const { t } = useTranslation()
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('')
@@ -94,7 +97,7 @@ export default function Navbar({ authMode, setAuthMode }) {
                     isActive ? 'text-[#c9a84c]' : 'text-[#a09880] hover:text-[#e8e0d4]'
                   }`}
                 >
-                  {link.label}
+                  {t(`landingNav.${link.label}`)}
                   <span className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#c9a84c] transition-all duration-200 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}`}/>
                 </a>
               )
@@ -113,20 +116,21 @@ export default function Navbar({ authMode, setAuthMode }) {
                 onClick={() => navigate('/feed')}
                 className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#c9a84c] text-[#c9a84c] hover:bg-[#c9a84c]/10 transition-all duration-200"
               >
-                My Feed
+                {t('feed.title')}
               </button>
               <button
                 onClick={() => navigate('/create')}
                 className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#c9a84c] bg-[#c9a84c] text-[#0e0e0e] font-semibold hover:bg-[#e2c97e] transition-all duration-200"
               >
-                Write
+                {t('nav.create')}
               </button>
               <button
                 onClick={() => { logout(); navigate('/') }}
                 className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#3a3329] text-[#a09880] hover:border-[#c9a84c] hover:text-[#c9a84c] transition-all duration-200"
               >
-                Log Out
+                {t('common.logOut')}
               </button>
+              <LanguageSwitcher compact />
             </>
           ) : (
             <>
@@ -138,14 +142,15 @@ export default function Navbar({ authMode, setAuthMode }) {
                     : 'border-[#3a3329] text-[#a09880] hover:border-[#c9a84c] hover:text-[#c9a84c]'
                 }`}
               >
-                Sign In
+                {t('common.signIn')}
               </button>
               <button
                 onClick={() => setAuthMode('signup')}
                 className="font-sans-ui text-sm px-5 py-2 rounded-full border border-[#c9a84c] bg-[#c9a84c] text-[#0e0e0e] font-semibold hover:bg-[#e2c97e] transition-all duration-200"
               >
-                Start Writing
+                {t('landing.startWriting')}
               </button>
+              <LanguageSwitcher compact />
             </>
           )}
         </div>
@@ -185,7 +190,7 @@ export default function Navbar({ authMode, setAuthMode }) {
                 }`}
                 onClick={() => setMenuOpen(false)}
               >
-                {link.label}
+                {t(`landingNav.${link.label}`)}
               </a>
             )
           })}
@@ -200,25 +205,25 @@ export default function Navbar({ authMode, setAuthMode }) {
                   onClick={() => { navigate('/feed'); setMenuOpen(false) }}
                   className="font-sans-ui text-sm px-4 py-2 rounded-full border border-[#c9a84c] text-[#c9a84c]"
                 >
-                  My Feed
+                  {t('feed.title')}
                 </button>
                 <button
                   onClick={() => { navigate('/create'); setMenuOpen(false) }}
                   className="font-sans-ui text-sm px-4 py-2 rounded-full bg-[#c9a84c] text-[#0e0e0e] font-semibold"
                 >
-                  Write
+                  {t('nav.create')}
                 </button>
                 <button
                   onClick={() => { navigate('/profile'); setMenuOpen(false) }}
                   className="font-sans-ui text-sm px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880] hover:border-[#c9a84c] hover:text-[#c9a84c]"
                 >
-                  Profile
+                  {t('nav.profile')}
                 </button>
                 <button
                   onClick={() => { logout(); navigate('/'); setMenuOpen(false) }}
                   className="font-sans-ui text-sm px-4 py-2 rounded-full border border-[#3a3329] text-[#a09880]"
                 >
-                  Log Out
+                  {t('common.logOut')}
                 </button>
               </>
             ) : (
@@ -227,16 +232,21 @@ export default function Navbar({ authMode, setAuthMode }) {
                   onClick={() => { setAuthMode('signin'); setMenuOpen(false) }}
                   className="font-sans-ui text-sm px-4 py-2 rounded-full border border-[#c9a84c] text-[#c9a84c]"
                 >
-                  Sign In
+                  {t('common.signIn')}
                 </button>
                 <button
                   onClick={() => { setAuthMode('signup'); setMenuOpen(false) }}
                   className="font-sans-ui text-sm px-4 py-2 rounded-full bg-[#c9a84c] text-[#0e0e0e] font-semibold"
                 >
-                  Start Writing
+                  {t('landing.startWriting')}
                 </button>
               </>
             )}
+          </div>
+
+          {/* Language switcher — also available to guests */}
+          <div className="pt-1">
+            <LanguageSwitcher />
           </div>
         </div>
       </div>

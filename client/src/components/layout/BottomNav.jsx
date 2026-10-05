@@ -1,5 +1,7 @@
 import { NavLink } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { useMessages } from "../../context/MessagesContext"
+import { useNotifications } from "../../context/NotificationsContext"
 
 /* ── Inline SVG Icons ───────────────────────────────────────────────── */
 const HomeIcon    = ({ active }) => active
@@ -12,16 +14,13 @@ const SearchIcon  = () => (
   </svg>
 )
 
-const DiscoverIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}>
-    <circle cx="12" cy="12" r="9"/>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 9.5l-3 6-3-6 6-3-3 6"/>
-  </svg>
-)
-
 const MessagesIcon = ({ active }) => active
   ? <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M4 5.5A2.5 2.5 0 016.5 3h11A2.5 2.5 0 0120 5.5v8A2.5 2.5 0 0117.5 16H9.4L5 20.2A1 1 0 013.5 19.4V5.5z"/></svg>
   : <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7A2.5 2.5 0 0117.5 16H9l-5 4V6.5z"/></svg>
+
+const NotificationsIcon = ({ active }) => active
+  ? <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor"><path d="M12 22a2.5 2.5 0 002.45-2h-4.9A2.5 2.5 0 0012 22zm7-6v-5a7 7 0 00-5-6.7V4a2 2 0 10-4 0v.3A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z"/></svg>
+  : <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8M13.7 20a2 2 0 01-3.4 0"/></svg>
 
 const CreateIcon  = () => (
   <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -36,35 +35,40 @@ const ProfileIcon = ({ active }) => active
 
 /* ── Tab definitions ────────────────────────────────────────────────── */
 const TABS = [
-  { to: "/feed",      label: "Home",     Icon: HomeIcon,     hasActive: true  },
-  { to: "/search",    label: "Search",   Icon: SearchIcon,   hasActive: false },
-  { to: "/messages",  label: "Messages", Icon: MessagesIcon, hasActive: true  },
-  { to: "/create",    label: "Create",   Icon: CreateIcon,   hasActive: false },
-  { to: "/profile",   label: "Profile",  Icon: ProfileIcon,  hasActive: true  },
+  { to: "/feed",          label: "home",          Icon: HomeIcon,          hasActive: true  },
+  { to: "/search",        label: "search",        Icon: SearchIcon,        hasActive: false },
+  { to: "/messages",      label: "messages",      Icon: MessagesIcon,      hasActive: true  },
+  { to: "/notifications", label: "notifications", Icon: NotificationsIcon, hasActive: true  },
+  { to: "/create",        label: "create",        Icon: CreateIcon,        hasActive: false },
+  { to: "/profile",       label: "profile",       Icon: ProfileIcon,       hasActive: true  },
 ]
 
 export default function BottomNav() {
+  const { t } = useTranslation()
   const { unreadCount } = useMessages()
+  const { unread: unreadNotifications } = useNotifications()
+
+  const badgeFor = (to) =>
+    to === "/messages" ? unreadCount
+    : to === "/notifications" ? unreadNotifications
+    : 0
+
   return (
-    /*
-     * Visible only below the md breakpoint.
-     * Safe-area padding handles notched phones (iOS / Android).
-     */
     <nav
       className="md:hidden fixed bottom-0 left-0 right-0 z-40
                  bg-[#0e0e0e]/95 backdrop-blur-md
                  border-t border-[#1f1f1f]
                  flex items-center justify-around
-                 px-2 pt-2 pb-[env(safe-area-inset-bottom,8px)]"
+                 px-1 pt-2 pb-[env(safe-area-inset-bottom,8px)]"
       aria-label="Mobile navigation"
     >
       {TABS.map(({ to, label, Icon, hasActive }) => (
         <NavLink
           key={to}
           to={to}
-          aria-label={label}
+          aria-label={t(`nav.${label}`)}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl
+            `flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl
              transition-all duration-200
              ${isActive ? "text-[#c9a84c]" : "text-[#7a7060]"}`
           }
@@ -73,17 +77,13 @@ export default function BottomNav() {
             <>
               <span className="relative">
                 <Icon active={hasActive && isActive} />
-                {to === "/messages" && unreadCount > 0 && (
+                {badgeFor(to) > 0 && (
                   <span className="absolute -top-1.5 -right-2 min-w-[14px] h-3.5 px-0.5 rounded-full bg-[#c9a84c] text-[#0e0e0e] text-[9px] font-bold flex items-center justify-center">
-                    {unreadCount > 9 ? "9+" : unreadCount}
+                    {badgeFor(to) > 9 ? "9+" : badgeFor(to)}
                   </span>
                 )}
               </span>
-              {/* Tiny dot indicator on active tab */}
-              <span
-                className={`w-1 h-1 rounded-full transition-all duration-300
-                            ${isActive ? "bg-[#c9a84c] scale-100" : "scale-0"}`}
-              />
+              <span className={`w-1 h-1 rounded-full transition-all duration-300 ${isActive ? "bg-[#c9a84c] scale-100" : "scale-0"}`} />
             </>
           )}
         </NavLink>

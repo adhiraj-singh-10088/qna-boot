@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import AppLayout from "../layout/AppLayout"
 
 /**
@@ -8,6 +9,7 @@ import AppLayout from "../layout/AppLayout"
  */
 export default function GuestPrompt({ title, message }) {
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   return (
     <AppLayout>
@@ -29,13 +31,13 @@ export default function GuestPrompt({ title, message }) {
             onClick={() => navigate("/login")}
             className="px-6 py-3 rounded-full bg-[#c9a84c] text-[#0e0e0e] font-semibold font-sans-ui hover:bg-[#e2c97e] transition-colors"
           >
-            Sign In
+            {t('guest.signIn')}
           </button>
           <button
             onClick={() => navigate("/")}
             className="px-6 py-3 rounded-full border border-[#3a3329] text-[#e8e0d4] font-semibold font-sans-ui hover:border-[#c9a84c] hover:text-[#c9a84c] transition-colors"
           >
-            Create Account
+            {t('guest.createAccount')}
           </button>
         </div>
       </div>

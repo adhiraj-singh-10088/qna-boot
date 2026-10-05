@@ -12,6 +12,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  timezone: 'Z', // interpret DATETIME/TIMESTAMP values as UTC (fixes the 5h30m relative-time offset)
   ssl: {
     minVersion: 'TLSv1.2',
     rejectUnauthorized: true

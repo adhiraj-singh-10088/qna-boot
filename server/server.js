@@ -4,6 +4,12 @@ import dotenv from "dotenv";
 import cors from "cors";
 import authRouter from "./routes/auth.js";
 import postsRouter from "./routes/posts.js";
+import feedRouter from "./routes/feed.js";
+import commentsRouter from "./routes/comments.js";
+import bookmarksRouter from "./routes/bookmarks.js";
+import usersRouter from "./routes/users.js";
+import followRequestsRouter from "./routes/followRequests.js";
+import notificationsRouter from "./routes/notifications.js";
 
 dotenv.config();
 
@@ -19,7 +25,13 @@ app.use(express.json());
 app.get("/", (req, res) => res.send("Hey Chat"));
 
 app.use("/auth", authRouter);
-app.use("/posts", postsRouter);
+app.use("/api/feed", feedRouter);
+app.use("/api/posts", postsRouter);
+app.use("/api/comments", commentsRouter);
+app.use("/api/bookmarks", bookmarksRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/follow-requests", followRequestsRouter);
+app.use("/api/notifications", notificationsRouter);
 
 const PORT = process.env.PORT || 3001;
 // app.get('/check-db', async (req, res) => {

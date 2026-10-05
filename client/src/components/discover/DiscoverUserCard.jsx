@@ -1,49 +1,57 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
+import { useAuth } from "../../context/AuthContext"
+import { followUser, unfollowUser } from "../../api/follows"
 
 /**
  * <DiscoverUserCard />
- * A single row card for the Discover/Suggestions page.
- *
- * Props:
- *  user: {
- *    id, name, username, avatar (optional),
- *    bio, articlesCount, followersCount
- *  }
- *
- * TODO: wire Follow / Unfollow to POST/DELETE /api/follows/:userId
+ * Row card for the Discover/Search page — follow button is API-wired.
  */
 export default function DiscoverUserCard({ user }) {
-  /*
-   * followState: "none" | "requested" | "following"
-   * For a public follow model use "following"; for private use "requested" first.
-   * TODO: initialise from user.isFollowing / user.hasRequested
-   */
-  const [followState, setFollowState] = useState("none")
+  const navigate = useNavigate()
+  const { t } = useTranslation()
+  const { isAuthenticated } = useAuth()
 
-  const handleFollow = () => {
-    if (followState === "none") {
-      // TODO: POST /api/follows/:user.id
-      setFollowState("following")
-    } else if (followState === "following" || followState === "requested") {
-      // TODO: DELETE /api/follows/:user.id
-      setFollowState("none")
+  const [followState, setFollowState] = useState(
+    user?.isFollowing ? "following" : user?.hasPendingRequest ? "requested" : "none",
+  )
+  const [busy, setBusy] = useState(false)
+
+  const handleFollow = async () => {
+    if (!isAuthenticated) { navigate("/login"); return }
+    if (busy) return
+    setBusy(true)
+    try {
+      if (followState === "none") {
+        const res = await followUser(user.username)
+        setFollowState(res.status === "requested" ? "requested" : "following")
+      } else {
+        await unfollowUser(user.username)
+        setFollowState("none")
+      }
+    } catch (err) {
+      window.alert(err.message)
+    } finally {
+      setBusy(false)
     }
   }
 
   const buttonConfig = {
-    none:      { label: "Follow",      cls: "bg-[#c9a84c] text-[#0e0e0e] hover:bg-[#e2c97e]" },
-    requested: { label: "Requested",   cls: "bg-[#1f1f1f] text-[#7a7060] border border-[#3a3329]" },
-    following: { label: "Following",   cls: "bg-[#1f1f1f] text-[#c9a84c]  border border-[#3a3329]" },
+    none:      { label: t('common.follow'),     cls: "bg-[#c9a84c] text-[#0e0e0e] hover:bg-[#e2c97e]" },
+    requested: { label: t('common.requested'),  cls: "bg-[#1f1f1f] text-[#7a7060] border border-[#3a3329]" },
+    following: { label: t('common.following'),  cls: "bg-[#1f1f1f] text-[#c9a84c] border border-[#3a3329]" },
   }
   const { label, cls } = buttonConfig[followState]
 
   const {
-    name          = "Unknown Author",
-    username      = "unknown",
-    avatar        = null,
-    bio           = "",
-    articlesCount = 0,
-    followersCount = 0,
+    name           = t('common.anonymous'),
+    username       = "unknown",
+    avatar         = null,
+    bio            = "",
+    followerCount  = 0,
+    isPrivate      = false,
+    followsYou     = false,
   } = user ?? {}
 
   return (
@@ -53,63 +61,63 @@ export default function DiscoverUserCard({ user }) {
                  hover:border-[#2a2a2a] transition-all duration-300 group"
     >
       {/* ── Avatar ─────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 relative">
+      <button
+        type="button"
+        onClick={() => navigate(`/u/${username}`)}
+        className="flex-shrink-0"
+        aria-label={`@${username}`}
+      >
         {avatar ? (
           <img
             src={avatar}
             alt={name}
-            className="w-12 h-12 rounded-full object-cover ring-2 ring-[#2a2a2a]
-                       group-hover:ring-[#c9a84c30] transition-all duration-300"
+            className="w-12 h-12 rounded-full object-cover ring-2 ring-[#2a2a2a] group-hover:ring-[#c9a84c30] transition-all duration-300"
           />
         ) : (
           <span
             className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a]
                        flex items-center justify-center text-[#c9a84c] font-bold text-lg
-                       ring-2 ring-[#2a2a2a] group-hover:ring-[#c9a84c30]
-                       transition-all duration-300"
+                       ring-2 ring-[#2a2a2a] group-hover:ring-[#c9a84c30] transition-all duration-300"
           >
             {name.charAt(0).toUpperCase()}
           </span>
         )}
-        {/* Active indicator dot — optional, remove if not needed */}
-        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full
-                         bg-[#0e0e0e] border-2 border-[#0e0e0e]" />
-      </div>
+      </button>
 
       {/* ── Info block ─────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0">
-        {/* Name + username */}
         <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span
+          <button
+            type="button"
+            onClick={() => navigate(`/u/${username}`)}
             className="text-[#e8e0d4] text-sm font-semibold font-sans-ui
-                       group-hover:text-[#c9a84c] transition-colors duration-200 cursor-pointer"
-            // TODO: navigate to /profile/:username
+                       group-hover:text-[#c9a84c] transition-colors duration-200"
           >
             {name}
-          </span>
+          </button>
           <span className="text-[#7a7060] text-xs font-sans-ui">@{username}</span>
+          {isPrivate && (
+            <span className="font-sans-ui text-[9px] px-1.5 py-0.5 rounded-full bg-[#2a2218] border border-[#3a3020] text-[#c9a84c] uppercase tracking-wider">
+              {t('search.privateAccount')}
+            </span>
+          )}
+          {followsYou && (
+            <span className="font-sans-ui text-[9px] px-1.5 py-0.5 rounded-full bg-[#1f1f1f] border border-[#2a2a2a] text-[#7a7060]">
+              {t('search.followsYou')}
+            </span>
+          )}
         </div>
 
-        {/* Bio snippet */}
         {bio && (
-          <p className="text-[#9a9080] text-xs mt-1 font-sans-ui leading-relaxed line-clamp-2">
-            {bio}
-          </p>
+          <p className="text-[#9a9080] text-xs mt-1 font-sans-ui leading-relaxed line-clamp-2">{bio}</p>
         )}
 
-        {/* Mini stats */}
         <div className="flex items-center gap-3 mt-2">
           <span className="text-[#7a7060] text-xs font-sans-ui">
-            <span className="text-[#c9a84c] font-semibold">{articlesCount}</span> articles
-          </span>
-          <span className="text-[#3a3329]">·</span>
-          <span className="text-[#7a7060] text-xs font-sans-ui">
             <span className="text-[#c9a84c] font-semibold">
-              {followersCount >= 1000
-                ? `${(followersCount / 1000).toFixed(1)}k`
-                : followersCount}
+              {followerCount >= 1000 ? `${(followerCount / 1000).toFixed(1)}k` : followerCount}
             </span>{" "}
-            followers
+            {t('profile.followers').toLowerCase()}
           </span>
         </div>
       </div>
@@ -117,11 +125,12 @@ export default function DiscoverUserCard({ user }) {
       {/* ── Follow toggle button ────────────────────────────────────── */}
       <button
         onClick={handleFollow}
+        disabled={busy}
         aria-label={`${label} ${name}`}
         className={`flex-shrink-0 px-4 py-1.5 rounded-full
                     text-xs font-semibold font-sans-ui
                     transition-all duration-200
-                    hover:scale-[1.03] active:scale-[0.97]
+                    hover:scale-[1.03] active:scale-[0.97] disabled:opacity-60
                     ${cls}`}
       >
         {label}

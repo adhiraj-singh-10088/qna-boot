@@ -1,4 +1,8 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
+import { useAuth } from "../../context/AuthContext"
+import { likePost, unlikePost, bookmarkPost, unbookmarkPost } from "../../api/posts"
 
 /* ── Action icon components ─────────────────────────────────────────── */
 const HeartIcon   = ({ filled }) => filled
@@ -23,54 +27,82 @@ const BookmarkIcon = ({ filled }) => filled
 
 /* ── Helpers ────────────────────────────────────────────────────────── */
 function formatRelativeTime(dateString) {
-  // TODO: replace with a date library (e.g. date-fns formatDistanceToNow)
   const diff = Date.now() - new Date(dateString).getTime()
   const mins  = Math.floor(diff / 60000)
-  if (mins < 60)   return `${mins}m ago`
-  if (mins < 1440) return `${Math.floor(mins / 60)}h ago`
-  return `${Math.floor(mins / 1440)}d ago`
+  if (mins < 1)    return "now"
+  if (mins < 60)   return `${mins}m`
+  if (mins < 1440) return `${Math.floor(mins / 60)}h`
+  return `${Math.floor(mins / 1440)}d`
 }
 
 /**
  * <PostCard />
  * Instagram-inspired article card for the editorial feed.
- *
- * Props:
- *  post: {
- *    id, author: { name, avatar, username },
- *    publishedAt, title, excerpt, heroImage,
- *    likes, comments, isLiked, isSaved
- *  }
- *  onShare: () => void  — opens <ShareModal />
- *
- * TODO: wire onLike / onSave to API mutations.
+ * Likes & bookmarks call the API (optimistic UI); guests are sent to /login.
  */
 export default function PostCard({ post, onShare }) {
-  /* Local optimistic state — replace with server state / React Query */
+  const navigate = useNavigate()
+  const { t } = useTranslation()
+  const { isAuthenticated } = useAuth()
+
+  /* Local optimistic state — server response reconciles the numbers */
   const [liked,      setLiked]      = useState(post?.isLiked  ?? false)
   const [saved,      setSaved]      = useState(post?.isSaved  ?? false)
   const [likeCount,  setLikeCount]  = useState(post?.likes    ?? 0)
+  const [busy,       setBusy]       = useState(false)
 
-  const handleLike = () => {
-    // TODO: call PATCH /api/posts/:id/like
-    setLiked(prev => !prev)
-    setLikeCount(prev => liked ? prev - 1 : prev + 1)
+  const requireAuth = () => {
+    if (isAuthenticated) return true
+    navigate("/login")
+    return false
   }
 
-  const handleSave = () => {
-    // TODO: call POST /api/bookmarks
-    setSaved(prev => !prev)
+  const handleLike = async () => {
+    if (!requireAuth() || busy) return
+    const next = !liked
+    setLiked(next)
+    setLikeCount((c) => Math.max(0, c + (next ? 1 : -1)))
+    setBusy(true)
+    try {
+      const res = next ? await likePost(post.id) : await unlikePost(post.id)
+      setLiked(res.isLiked)
+      setLikeCount(res.likes)
+    } catch {
+      setLiked(!next)
+      setLikeCount((c) => Math.max(0, c + (next ? -1 : 1)))
+    } finally {
+      setBusy(false)
+    }
   }
 
-  // Fallback values for demo rendering
+  const handleSave = async () => {
+    if (!requireAuth() || busy) return
+    const next = !saved
+    setSaved(next)
+    setBusy(true)
+    try {
+      const res = next ? await bookmarkPost(post.id) : await unbookmarkPost(post.id)
+      setSaved(res.isSaved)
+    } catch {
+      setSaved(!next)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Fallback values for safety
   const {
-    author   = { name: "Anonymous", username: "anon", avatar: null },
+    id,
+    author   = { name: t('common.anonymous'), username: "anon", avatar: null },
     publishedAt = new Date().toISOString(),
-    title    = "Untitled Article",
+    title    = "",
     excerpt  = "",
     heroImage = null,
     comments = 0,
+    category = null,
   } = post ?? {}
+
+  const openPost = () => navigate(`/post/${id}`)
 
   return (
     <article
@@ -81,79 +113,76 @@ export default function PostCard({ post, onShare }) {
       {/* ── Card Header: Author info ─────────────────────────────────── */}
       <header className="flex items-center justify-between px-4 pt-4 pb-3">
         <div className="flex items-center gap-3">
-          {/* Author avatar */}
-          {author.avatar ? (
-            <img
-              src={author.avatar}
-              alt={author.name}
-              className="w-9 h-9 rounded-full object-cover ring-1 ring-[#2a2a2a]"
-            />
-          ) : (
-            /* Fallback monogram avatar */
-            <span
-              className="w-9 h-9 rounded-full bg-[#2a2a2a] flex items-center justify-center
-                         text-[#c9a84c] text-sm font-bold flex-shrink-0 ring-1 ring-[#3a3329]"
-            >
-              {author.name.charAt(0).toUpperCase()}
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => author.username && navigate(`/u/${author.username}`)}
+            className="flex-shrink-0"
+            aria-label={`@${author.username}`}
+          >
+            {author.avatar ? (
+              <img
+                src={author.avatar}
+                alt={author.name}
+                className="w-9 h-9 rounded-full object-cover ring-1 ring-[#2a2a2a]"
+              />
+            ) : (
+              <span
+                className="w-9 h-9 rounded-full bg-[#2a2a2a] flex items-center justify-center
+                           text-[#c9a84c] text-sm font-bold ring-1 ring-[#3a3329]"
+              >
+                {author.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </button>
 
           <div>
-            {/* Author name */}
-            <p className="text-[#e8e0d4] text-sm font-semibold leading-none font-sans-ui">
+            <button
+              type="button"
+              onClick={() => author.username && navigate(`/u/${author.username}`)}
+              className="text-[#e8e0d4] text-sm font-semibold leading-none font-sans-ui hover:text-[#c9a84c] transition-colors"
+            >
               {author.name}
-            </p>
-            {/* @username · timestamp */}
+            </button>
             <p className="text-[#7a7060] text-xs mt-0.5 font-sans-ui">
               @{author.username} · {formatRelativeTime(publishedAt)}
             </p>
           </div>
         </div>
 
-        {/* ··· More options button */}
-        <button
-          className="text-[#7a7060] hover:text-[#e8e0d4] transition-colors p-1 rounded-lg
-                     hover:bg-[#1f1f1f]"
-          aria-label="More options"
-          // TODO: open post options menu (edit, report, hide)
-        >
-          <svg viewBox="0 0 20 20" className="w-5 h-5" fill="currentColor">
-            <circle cx="10" cy="4"  r="1.5"/>
-            <circle cx="10" cy="10" r="1.5"/>
-            <circle cx="10" cy="16" r="1.5"/>
-          </svg>
-        </button>
+        {category && (
+          <span className="font-sans-ui text-[10px] px-2.5 py-1 rounded-full bg-[#2a2218] border border-[#3a3020] text-[#c9a84c] uppercase tracking-wider">
+            {category}
+          </span>
+        )}
       </header>
 
       {/* ── Hero Image ──────────────────────────────────────────────── */}
       {heroImage && (
-        <div className="relative w-full aspect-[16/9] overflow-hidden">
+        <button type="button" onClick={openPost} className="block relative w-full aspect-[16/9] overflow-hidden">
           <img
             src={heroImage}
             alt={`Hero image for "${title}"`}
             className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-700"
             loading="lazy"
           />
-          {/* Subtle gradient overlay at bottom for text legibility */}
           <div className="absolute inset-0 bg-gradient-to-t from-[#111111]/40 to-transparent" />
-        </div>
+        </button>
       )}
 
       {/* ── Article Content ──────────────────────────────────────────── */}
       <div className="px-4 py-3">
-        {/* Article title */}
         <h2
           className="text-[#e8e0d4] text-[18px] font-semibold leading-snug mb-2
                      hover:text-[#c9a84c] transition-colors duration-200 cursor-pointer"
           style={{ fontFamily: "'Georgia', serif" }}
-          // TODO: navigate to /articles/:post.id on click
+          onClick={openPost}
         >
           {title}
         </h2>
 
-        {/* Excerpt — clamped to 2 lines */}
         <p
-          className="text-[#9a9080] text-[14px] leading-relaxed line-clamp-2 font-sans-ui"
+          className="text-[#9a9080] text-[14px] leading-relaxed line-clamp-2 font-sans-ui cursor-pointer"
+          onClick={openPost}
         >
           {excerpt}
         </p>
@@ -164,7 +193,6 @@ export default function PostCard({ post, onShare }) {
 
       {/* ── Instagram-Style Action Bar ───────────────────────────────── */}
       <footer className="flex items-center px-4 py-3 gap-1">
-
         {/* Like button */}
         <button
           onClick={handleLike}
@@ -185,13 +213,13 @@ export default function PostCard({ post, onShare }) {
           </span>
         </button>
 
-        {/* Comment button */}
+        {/* Comment button → opens post page */}
         <button
-          aria-label="View comments"
+          onClick={openPost}
+          aria-label={t('post.comments')}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl
                      text-[#7a7060] hover:text-[#e8e0d4] hover:bg-[#1f1f1f]
                      transition-all duration-200 group"
-          // TODO: navigate to /articles/:id#comments
         >
           <span className="group-hover:scale-110 transition-transform duration-150">
             <CommentIcon />
@@ -203,8 +231,8 @@ export default function PostCard({ post, onShare }) {
 
         {/* Share button */}
         <button
-          onClick={onShare}
-          aria-label="Share article"
+          onClick={() => onShare?.(post)}
+          aria-label={t('post.shareArticle')}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl
                      text-[#7a7060] hover:text-[#e8e0d4] hover:bg-[#1f1f1f]
                      transition-all duration-200 group"

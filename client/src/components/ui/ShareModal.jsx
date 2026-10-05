@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import { useTranslation } from "react-i18next"
 
 /* ── Mock contacts for demo — replace with API call ─────────────────── */
 const DEMO_CONTACTS = [
@@ -24,9 +25,16 @@ const DEMO_CONTACTS = [
  *  - Wire "Send" button to POST /api/messages or POST /api/shares
  */
 export default function ShareModal({ isOpen, onClose, article }) {
+  const { t } = useTranslation()
   const [query,   setQuery]   = useState("")
   const [sent,    setSent]    = useState({})   // { [userId]: true }
+  const [copied,  setCopied]  = useState(false)
   const searchRef             = useRef(null)
+
+  /* The public permalink to copy/share for this article */
+  const permalink = article?.id
+    ? `${window.location.origin}/post/${article.id}`
+    : window.location.href
 
   /* Focus search input when modal opens */
   useEffect(() => {
@@ -34,6 +42,7 @@ export default function ShareModal({ isOpen, onClose, article }) {
       setTimeout(() => searchRef.current?.focus(), 80)
       setQuery("")
       setSent({})
+      setCopied(false)
     }
   }, [isOpen])
 
@@ -56,6 +65,35 @@ export default function ShareModal({ isOpen, onClose, article }) {
   const handleSend = (userId) => {
     // TODO: POST /api/shares { articleId: article.id, recipientId: userId }
     setSent((prev) => ({ ...prev, [userId]: true }))
+  }
+
+  /* Copy the article permalink (clipboard API with a legacy fallback) */
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(permalink)
+    } catch {
+      const el = document.createElement("textarea")
+      el.value = permalink
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand("copy")
+      document.body.removeChild(el)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  /* Native share sheet where available (mobile), copy otherwise */
+  async function nativeShare() {
+    if (!navigator.share) { copyLink(); return }
+    try {
+      await navigator.share({
+        title: article?.title || "Inkspace",
+        url: permalink,
+      })
+    } catch {
+      /* user cancelled the share sheet */
+    }
   }
 
   return (
@@ -196,13 +234,10 @@ export default function ShareModal({ isOpen, onClose, article }) {
           )}
         </div>
 
-        {/* Copy link row */}
-        <div className="px-5 py-4 border-t border-[#1f1f1f]">
+        {/* Copy link + native share row */}
+        <div className="px-5 py-4 border-t border-[#1f1f1f] space-y-2">
           <button
-            onClick={() => {
-              // TODO: use article permalink instead of current URL
-              navigator.clipboard?.writeText(window.location.href)
-            }}
+            onClick={copyLink}
             className="w-full flex items-center justify-center gap-2
                        bg-[#1a1a1a] hover:bg-[#1f1f1f] border border-[#2a2a2a]
                        text-[#e8e0d4] text-sm font-medium font-sans-ui
@@ -213,7 +248,21 @@ export default function ShareModal({ isOpen, onClose, article }) {
               <path strokeLinecap="round" strokeLinejoin="round"
                     d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
             </svg>
-            Copy link
+            {copied ? t('common.linkCopied') : t('common.copyLink')}
+          </button>
+          <button
+            onClick={nativeShare}
+            className="w-full flex items-center justify-center gap-2
+                       bg-[#1a1a1a] hover:bg-[#1f1f1f] border border-[#2a2a2a]
+                       text-[#e8e0d4] text-sm font-medium font-sans-ui
+                       px-4 py-2.5 rounded-xl transition-all duration-200"
+          >
+            <svg viewBox="0 0 24 24" className="w-4 h-4 text-[#c9a84c]" fill="none"
+                 stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+            </svg>
+            {t('common.share')}
           </button>
         </div>
       </div>
