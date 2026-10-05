@@ -86,12 +86,12 @@ export default function ShareModal({ isOpen, onClose, article }) {
     setSending((prev) => ({ ...prev, [contact.id]: true }))
     try {
       await sendMessage(contact.username, {
-        content: article?.title ? `Shared a story: ${article.title}` : "Shared a story with you",
+        content: article?.title ? t('shareModal.sharedAStory', { title: article.title }) : t('shareModal.sharedGeneric'),
         postId: article?.id,
       })
       setSent((prev) => ({ ...prev, [contact.id]: true }))
     } catch (err) {
-      setError(err.message || "Could not send the story.")
+      setError(err.message || t('shareModal.sendFailed'))
     } finally {
       setSending((prev) => ({ ...prev, [contact.id]: false }))
     }
@@ -131,7 +131,7 @@ export default function ShareModal({ isOpen, onClose, article }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Share article"
+      aria-label={t('shareModal.aria')}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center
                  bg-black/70 backdrop-blur-sm p-4 animate-fade-in"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
@@ -145,11 +145,11 @@ export default function ShareModal({ isOpen, onClose, article }) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#1f1f1f]">
           <h2 className="text-[#e8e0d4] font-semibold text-base font-sans-ui">
-            Share
+            {t('shareModal.title')}
           </h2>
           <button
             onClick={onClose}
-            aria-label="Close share modal"
+            aria-label={t('shareModal.close')}
             className="w-8 h-8 flex items-center justify-center rounded-full
                        text-[#7a7060] hover:text-[#e8e0d4] hover:bg-[#2a2a2a]
                        transition-all duration-200"
@@ -188,16 +188,16 @@ export default function ShareModal({ isOpen, onClose, article }) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search people…"
+              placeholder={t('shareModal.searchPlaceholder')}
               className="flex-1 bg-transparent text-[#e8e0d4] text-sm
                          placeholder:text-[#7a7060] outline-none font-sans-ui"
-              aria-label="Search contacts"
+              aria-label={t('shareModal.searchContacts')}
             />
             {query && (
               <button
                 onClick={() => setQuery("")}
                 className="text-[#7a7060] hover:text-[#e8e0d4] transition-colors"
-                aria-label="Clear search"
+                aria-label={t('shareModal.clearSearch')}
               >
                 <svg viewBox="0 0 20 20" className="w-4 h-4" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
@@ -222,15 +222,15 @@ export default function ShareModal({ isOpen, onClose, article }) {
         >
           {!isAuthenticated ? (
             <p className="text-center text-[#7a7060] text-sm py-8 font-sans-ui px-6">
-              Sign in to send stories to the people you follow.
+              {t('shareModal.signInHint')}
             </p>
           ) : contacts.length === 0 ? (
             <p className="text-center text-[#7a7060] text-sm py-8 font-sans-ui px-6">
-              You're not following anyone yet — follow writers to share stories with them.
+              {t('shareModal.followNobody')}
             </p>
           ) : filtered.length === 0 ? (
             <p className="text-center text-[#7a7060] text-sm py-8 font-sans-ui">
-              No contacts found
+              {t('shareModal.noContacts')}
             </p>
           ) : (
             filtered.map((contact) => (
@@ -270,7 +270,7 @@ export default function ShareModal({ isOpen, onClose, article }) {
                 <button
                   onClick={() => handleSend(contact)}
                   disabled={sent[contact.id] || sending[contact.id]}
-                  aria-label={sent[contact.id] ? "Sent" : `Send to ${contact.name}`}
+                  aria-label={sent[contact.id] ? t('shareModal.sent') : t('shareModal.sendTo', { name: contact.name })}
                   className={`px-4 py-1.5 rounded-full text-xs font-semibold font-sans-ui
                               transition-all duration-200 flex-shrink-0
                               ${sent[contact.id]
@@ -280,7 +280,7 @@ export default function ShareModal({ isOpen, onClose, article }) {
                                   : "bg-[#c9a84c] text-[#0e0e0e] hover:bg-[#e2c97e] hover:scale-[1.02] active:scale-[0.98]"
                               }`}
                 >
-                  {sent[contact.id] ? "Sent ✓" : sending[contact.id] ? "Sending…" : "Send"}
+                  {sent[contact.id] ? t('shareModal.sent') : sending[contact.id] ? t('shareModal.sending') : t('shareModal.send')}
                 </button>
               </div>
             ))

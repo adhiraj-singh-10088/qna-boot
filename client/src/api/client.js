@@ -38,6 +38,13 @@ export async function apiFetch(path, { method = 'GET', body, auth = true } = {})
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
+  /* Content translation: tell the server which UI language is active so it
+     can translate user content (titles, bodies, bios, comments) in responses. */
+  try {
+    const lang = localStorage.getItem('inkspace_lang');
+    if (lang && lang !== 'en') headers['X-Lang'] = lang;
+  } catch { /* localStorage unavailable — skip */ }
+
   if (auth) {
     const token = getToken();
     if (token) headers.Authorization = `Bearer ${token}`;

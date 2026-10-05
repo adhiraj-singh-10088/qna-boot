@@ -2,6 +2,7 @@ import pool from "../utils/db.js";
 import { fetchPostById, fetchPosts, getPostRow, stripHtml } from "../utils/posts.js";
 import { sanitizePostHtml } from "../utils/sanitize.js";
 import { notify } from "../utils/notify.js";
+import { reqLang, translateFields, translateList } from "../utils/translate.js";
 
 /*
  * Post endpoints:
@@ -48,7 +49,8 @@ export async function listFeed(req, res) {
       limit: clampLimit(req.query.limit, 20),
       offset: clampOffset(req.query.offset),
     });
-    return res.json({ posts });
+    const lang = reqLang(req);
+    return res.json({ posts: await translateList(posts, ["title", "subtitle", "excerpt"], lang) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Unable to load feed" });
@@ -108,7 +110,8 @@ export async function getPostById(req, res) {
   try {
     const post = await fetchPostById(req.params.id, req.user?.id || 0);
     if (!post) return res.status(404).json({ error: "Post not found" });
-    return res.json({ post });
+    const translated = await translateFields(post, ["title", "subtitle", "content"], reqLang(req));
+    return res.json({ post: translated });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Unable to fetch post" });
@@ -265,14 +268,14 @@ export async function listComments(req, res) {
       [req.params.id],
     );
 
-    return res.json({
-      comments: rows.map((r) => ({
-        id: r.id,
-        content: r.content,
-        createdAt: r.created_at,
-        author: { id: r.author_id, username: r.username, name: r.full_name || r.username },
-      })),
-    });
+    const comments = rows.map((r) => ({
+      id: r.id,
+      content: r.content,
+      createdAt: r.created_at,
+      author: { id: r.author_id, username: r.username, name: r.full_name || r.username },
+    }));
+
+    return res.json({ comments: await translateList(comments, ["content"], reqLang(req)) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Unable to load comments" });
@@ -303,13 +306,14 @@ export async function addComment(req, res) {
     const [[{ n }]] = await pool.query("SELECT COUNT(*) AS n FROM comments WHERE post_id = ?", [post.id]);
 
     const c = rows[0];
+    const comment = {
+      id: c.id,
+      content: c.content,
+      createdAt: c.created_at,
+      author: { id: c.author_id, username: c.username, name: c.full_name || c.username },
+    };
     return res.status(201).json({
-      comment: {
-        id: c.id,
-        content: c.content,
-        createdAt: c.created_at,
-        author: { id: c.author_id, username: c.username, name: c.full_name || c.username },
-      },
+      comment: await translateFields(comment, ["content"], reqLang(req)),
       comments: n,
     });
   } catch (err) {
@@ -354,7 +358,7 @@ export async function listBookmarks(req, res) {
       params: [req.user.id],
       order: "bm.created_at DESC",
     });
-    return res.json({ posts });
+    return res.json({ posts: await translateList(posts, ["title", "subtitle", "excerpt"], reqLang(req)) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Unable to load saved posts" });

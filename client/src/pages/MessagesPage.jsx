@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import AppLayout from "../components/layout/AppLayout"
 import { useMessages } from "../context/MessagesContext"
 
@@ -32,6 +33,7 @@ function Avatar({ peer, size = "w-11 h-11", text = "text-base" }) {
 }
 
 export default function MessagesPage() {
+  const { t } = useTranslation()
   const { conversations, loadThread, markRead, sendMessage } = useMessages()
   const [activeId, setActiveId] = useState(null)
   const [draft, setDraft] = useState("")
@@ -74,7 +76,7 @@ export default function MessagesPage() {
     try {
       await sendMessage(activeId, text)
     } catch (err) {
-      window.alert(err.message || "Could not send the message.")
+      window.alert(err.message || t('messages.sendFailed'))
       setDraft(text)
     } finally {
       setSending(false)
@@ -94,10 +96,10 @@ export default function MessagesPage() {
             className="text-2xl font-semibold text-[#e8e0d4] mb-3"
             style={{ fontFamily: "'Georgia', serif" }}
           >
-            No messages yet
+            {t('messages.emptyTitle')}
           </h1>
           <p className="text-[#7a7060] text-[15px] leading-relaxed max-w-sm font-sans-ui">
-            Share a story with someone you follow — open any post and press Share to send it to them.
+            {t('messages.emptyText')}
           </p>
         </div>
       </AppLayout>
@@ -117,10 +119,10 @@ export default function MessagesPage() {
               className="text-[#e8e0d4] text-xl font-bold"
               style={{ fontFamily: "'Georgia', serif" }}
             >
-              Messages
+              {t('messages.title')}
             </h1>
             <p className="text-[#7a7060] text-xs font-sans-ui mt-0.5">
-              Notes from writers you follow
+              {t('messages.subtitle')}
             </p>
           </header>
 
@@ -148,7 +150,7 @@ export default function MessagesPage() {
                       </span>
                       <span className="flex items-center gap-2 mt-0.5">
                         <span className={`text-xs font-sans-ui truncate ${conv.unread ? "text-[#c9a84c]" : "text-[#7a7060]"}`}>
-                          {last?.from === "me" ? "You: " : ""}
+                          {last?.from === "me" ? t('messages.youPrefix') : ""}
                           {last?.text}
                         </span>
                         {conv.unread > 0 && (
@@ -174,9 +176,9 @@ export default function MessagesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7A2.5 2.5 0 0117.5 16H9l-5 4V6.5z" />
                 </svg>
               </span>
-              <p className="text-[#e8e0d4] font-medium font-sans-ui">Your inbox</p>
+              <p className="text-[#e8e0d4] font-medium font-sans-ui">{t('messages.inboxTitle')}</p>
               <p className="text-[#7a7060] text-sm font-sans-ui mt-1 max-w-xs">
-                Open a conversation to read what a friend sent you, then reply from here.
+                {t('messages.inboxText')}
               </p>
             </div>
           ) : (
@@ -186,7 +188,7 @@ export default function MessagesPage() {
                   type="button"
                   className="md:hidden text-[#7a7060] hover:text-[#e8e0d4] p-1"
                   onClick={() => setActiveId(null)}
-                  aria-label="Back to conversations"
+                  aria-label={t('messages.back')}
                 >
                   <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -219,7 +221,7 @@ export default function MessagesPage() {
                             to={`/post/${msg.postId}`}
                             className={`inline-flex items-center gap-1 text-xs font-sans-ui mt-1.5 underline underline-offset-2 ${mine ? "text-[#0e0e0e]/80 hover:text-[#0e0e0e]" : "text-[#c9a84c] hover:text-[#e2c97e]"}`}
                           >
-                            Open shared story →
+                            {t('messages.openStory')}
                           </Link>
                         )}
                         <p className={`text-[10px] mt-1 font-sans-ui ${mine ? "text-[#0e0e0e]/60" : "text-[#7a7060]"}`}>
@@ -243,7 +245,7 @@ export default function MessagesPage() {
                     }
                   }}
                   rows={1}
-                  placeholder={`Message ${active.peer.name.split(" ")[0]}…`}
+                  placeholder={t('messages.placeholder', { name: active.peer.name.split(" ")[0] })}
                   className="flex-1 resize-none rounded-xl bg-[#161616] border border-[#2a2a2a]
                              px-3 py-2.5 text-sm font-sans-ui text-[#e8e0d4] placeholder:text-[#5c564c]
                              focus:outline-none focus:border-[#c9a84c]/50 max-h-32"
@@ -254,7 +256,7 @@ export default function MessagesPage() {
                   className="px-4 py-2.5 rounded-xl bg-[#c9a84c] text-[#0e0e0e] text-sm font-semibold font-sans-ui
                              disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 transition-all"
                 >
-                  Send
+                  {t('messages.send')}
                 </button>
               </form>
             </>

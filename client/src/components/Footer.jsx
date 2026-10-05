@@ -1,15 +1,15 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 
 const FOOTER_LINKS = {
-  Product: ['Explore', 'For Writers', 'For Readers', 'Newsletters', 'Pricing'],
-  Company: ['About Us', 'Blog', 'Careers', 'Press Kit', 'Contact'],
-  Legal: ['Terms of Use', 'Privacy Policy', 'Cookie Policy', 'DMCA'],
-  Community: ['Discord', 'Twitter / X', 'Instagram', 'RSS Feed'],
+  product: ['explore', 'forWriters', 'forReaders', 'newsletters', 'pricing'],
+  company: ['aboutUs', 'blog', 'careers', 'pressKit', 'contact'],
+  legal: ['terms', 'privacy', 'cookies', 'dmca'],
+  community: ['discord', 'twitter', 'instagram', 'rss'],
 }
 
-
-
 export default function Footer() {
+  const { t } = useTranslation()
   return (
     <footer id="about" className="border-t border-[#1a1814] bg-[#0e0e0e]">
       <div className="max-w-7xl mx-auto px-6 py-16">
@@ -27,19 +27,19 @@ export default function Footer() {
               <span className="text-lg font-bold text-[#f5e6c8]">Inkspace</span>
             </div>
             <p className="font-sans-ui text-xs text-[#4a4438] leading-relaxed max-w-[180px]">
-              The home for writers, thinkers, and readers. Where ideas find their voice.
+              {t('footer.tagline')}
             </p>
           </div>
 
           {/* Link columns */}
           {Object.entries(FOOTER_LINKS).map(([section, links]) => (
             <div key={section}>
-              <p className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase mb-4">{section}</p>
+              <p className="font-sans-ui text-[10px] tracking-widest text-[#5a5248] uppercase mb-4">{t(`footer.${section}`)}</p>
               <ul className="space-y-2.5">
                 {links.map((link) => (
                   <li key={link}>
                     <a href="#" className="font-sans-ui text-xs text-[#4a4438] hover:text-[#7a7060] transition-colors">
-                      {link}
+                      {t(`footer.${link}`)}
                     </a>
                   </li>
                 ))}
@@ -51,7 +51,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-[#1a1814]">
           <p className="font-sans-ui text-xs text-[#3a3329]">
-            © {new Date().getFullYear()} Inkspace. All rights reserved.
+            {t('footer.rights', { year: new Date().getFullYear() })}
           </p>
           <p className="font-sans-ui text-xs text-[#3a3329] italic">
             "The pen is the tongue of the mind." — Cervantes

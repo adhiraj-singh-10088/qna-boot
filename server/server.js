@@ -9,6 +9,7 @@ import authRouter from "./routes/auth.js";
 import postsRouter from "./routes/posts.js";
 import uploadsRouter, { UPLOADS_DIR } from "./routes/uploads.js";
 import messagesRouter from "./routes/messages.js";
+import activityRouter from "./routes/activity.js";
 import feedRouter from "./routes/feed.js";
 import commentsRouter from "./routes/comments.js";
 import bookmarksRouter from "./routes/bookmarks.js";
@@ -70,6 +71,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/follow-requests", followRequestsRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/messages", messagesRouter);
+app.use("/api/activity", activityRouter);
 
 const PORT = process.env.PORT || 3001;
 // app.get('/check-db', async (req, res) => {

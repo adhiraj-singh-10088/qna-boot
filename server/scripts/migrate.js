@@ -90,6 +90,13 @@ const TABLES = {
     INDEX idx_messages_pair (sender_id, recipient_id),
     INDEX idx_messages_recipient (recipient_id, read_at)
   )`,
+  translations: `CREATE TABLE IF NOT EXISTS translations (
+    hash CHAR(64) NOT NULL,
+    lang VARCHAR(8) NOT NULL,
+    text MEDIUMTEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (hash, lang)
+  )`,
 };
 
 async function main() {

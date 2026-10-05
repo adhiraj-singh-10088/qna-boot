@@ -221,7 +221,7 @@ export default function AuthPanel({ authMode, setAuthMode, lockedMode = false, j
                   style={{ color: dob.month ? '#e8e0d4' : '#3a3329' }}
                   className="flex-[1.4] bg-[#1a1814] border border-[#2e2a24] rounded-xl px-3 py-3 text-sm font-sans-ui focus:outline-none focus:border-[#c9a84c]/50 focus:ring-1 focus:ring-[#c9a84c]/20 transition-all appearance-none cursor-pointer">
                   <option value="" disabled style={{ color: '#3a3329' }}>{t('auth.mm')}</option>
-                  {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => (
+                  {Object.values(t('months', { returnObjects: true })).map((m, i) => (
                     <option key={m} value={i + 1} style={{ color: '#e8e0d4', background: '#1a1814' }}>{m}</option>
                   ))}
                 </select>

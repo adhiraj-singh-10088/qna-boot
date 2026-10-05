@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
 import { useNotifications } from "../../context/NotificationsContext"
+import { fetchActivity } from "../../api/activity"
 import LanguageSwitcher from "../ui/LanguageSwitcher"
 
 const SETTINGS_KEY = "inkspace_settings"
@@ -82,6 +83,7 @@ export default function MoreMenu() {
   const { unread } = useNotifications()
   const [open, setOpen] = useState(false)
   const [view, setView] = useState("menu")
+  const [activity, setActivity] = useState(null)
   const [settings, setSettings] = useState(loadSettings)
   const rootRef = useRef(null)
 
@@ -110,6 +112,16 @@ export default function MoreMenu() {
       document.removeEventListener("keydown", onKey)
     }
   }, [open])
+
+  /* Load the user's likes + comments when the activity view opens */
+  useEffect(() => {
+    if (view !== "activity" || !isAuthenticated) return undefined
+    let cancelled = false
+    fetchActivity()
+      .then((data) => { if (!cancelled) setActivity(data || { likes: [], comments: [] }) })
+      .catch(() => { if (!cancelled) setActivity({ likes: [], comments: [] }) })
+    return () => { cancelled = true }
+  }, [view, isAuthenticated])
 
   function handleLogout() {
     logout()
@@ -176,7 +188,7 @@ export default function MoreMenu() {
                     <IconBookmark />
                     {t('nav.saved')}
                   </button>
-                  <button type="button" className={itemClass} onClick={() => setView("activity")}>
+                  <button type="button" className={itemClass} onClick={() => { setActivity(null); setView("activity") }}>
                     <IconActivity />
                     {t('nav.yourActivity')}
                   </button>
@@ -265,7 +277,7 @@ export default function MoreMenu() {
 
           {view === "activity" && (
             <div className="p-4">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-3">
                 <button
                   type="button"
                   onClick={() => setView("menu")}
@@ -278,7 +290,68 @@ export default function MoreMenu() {
                 </button>
                 <h2 className="text-sm font-semibold font-sans-ui text-[#e8e0d4]">{t('nav.yourActivity')}</h2>
               </div>
-              <p className="text-sm text-[#7a7060] font-sans-ui leading-relaxed">{t('nav.activityHint')}</p>
+
+              {activity === null ? (
+                <p className="text-xs text-[#7a7060] font-sans-ui py-2">{t('common.loading')}</p>
+              ) : (
+                <div className="max-h-[55vh] overflow-y-auto scrollbar-thin space-y-4 pr-0.5">
+                  <div>
+                    <h3 className="text-[11px] uppercase tracking-widest text-[#5a5248] font-sans-ui mb-2">
+                      {t('activity.likes')}
+                    </h3>
+                    {activity.likes.length === 0 ? (
+                      <p className="text-xs text-[#7a7060] font-sans-ui leading-relaxed">{t('activity.noLikes')}</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {activity.likes.map(({ post }) => (
+                          <li key={`like-${post.id}`}>
+                            <button
+                              type="button"
+                              onClick={() => { setOpen(false); navigate(`/post/${post.id}`) }}
+                              className="w-full flex items-start gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-[#1a1a1a] transition-colors"
+                            >
+                              <span className="text-[#c9a84c] text-xs mt-0.5">♥</span>
+                              <span className="flex-1 min-w-0">
+                                <span className="block truncate text-xs font-sans-ui text-[#e8e0d4]">{post.title}</span>
+                                <span className="block text-[10px] font-sans-ui text-[#7a7060]">@{post.author.username}</span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-[11px] uppercase tracking-widest text-[#5a5248] font-sans-ui mb-2">
+                      {t('activity.comments')}
+                    </h3>
+                    {activity.comments.length === 0 ? (
+                      <p className="text-xs text-[#7a7060] font-sans-ui leading-relaxed">{t('activity.noComments')}</p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {activity.comments.map((c) => (
+                          <li key={`comment-${c.id}`}>
+                            <button
+                              type="button"
+                              onClick={() => { setOpen(false); navigate(`/post/${c.post.id}`) }}
+                              className="w-full flex items-start gap-2 px-2 py-1.5 rounded-lg text-left hover:bg-[#1a1a1a] transition-colors"
+                            >
+                              <span className="text-[#7a7060] text-xs mt-0.5">💬</span>
+                              <span className="flex-1 min-w-0">
+                                <span className="block truncate text-xs font-sans-ui text-[#e8e0d4]">{c.content}</span>
+                                <span className="block text-[10px] font-sans-ui text-[#7a7060]">
+                                  {t('activity.on')}: {c.post.title}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -1,6 +1,7 @@
 import pool from "../utils/db.js";
 import { fetchPosts } from "../utils/posts.js";
 import { notify } from "../utils/notify.js";
+import { reqLang, translateFields, translateList } from "../utils/translate.js";
 
 /*
  * User endpoints:
@@ -60,7 +61,7 @@ export async function searchUsers(req, res) {
     if (q) params.push(like, like);
 
     const [rows] = await pool.execute(sql, params);
-    return res.json({ users: rows.map(mapSummary) });
+    return res.json({ users: await translateList(rows.map(mapSummary), ["bio"], reqLang(req)) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Unable to search users" });
@@ -100,24 +101,24 @@ export async function getUserProfile(req, res) {
       followsYou = Boolean(flags[0]?.follows_you);
     }
 
-    return res.json({
-      profile: {
-        id: row.uid,
-        username: row.username,
-        name: row.full_name || row.username,
-        avatarUrl: row.avatar_url || null,
-        bio: row.bio || "",
-        isPrivate: Boolean(row.is_private),
-        createdAt: row.created_at,
-        postCount: Number(row.post_count || 0),
-        followerCount: Number(row.follower_count || 0),
-        followingCount: Number(row.following_count || 0),
-        isSelf,
-        isFollowing,
-        followsYou,
-        hasPendingRequest,
-      },
-    });
+    const profile = {
+      id: row.uid,
+      username: row.username,
+      name: row.full_name || row.username,
+      avatarUrl: row.avatar_url || null,
+      bio: row.bio || "",
+      isPrivate: Boolean(row.is_private),
+      createdAt: row.created_at,
+      postCount: Number(row.post_count || 0),
+      followerCount: Number(row.follower_count || 0),
+      followingCount: Number(row.following_count || 0),
+      isSelf,
+      isFollowing,
+      followsYou,
+      hasPendingRequest,
+    };
+
+    return res.json({ profile: await translateFields(profile, ["bio"], reqLang(req)) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Unable to load profile" });
@@ -157,7 +158,7 @@ export async function getUserPosts(req, res) {
       limit: 30,
       includeDrafts: Boolean(isSelf),
     });
-    return res.json({ posts, locked: false });
+    return res.json({ posts: await translateList(posts, ["title", "subtitle", "excerpt"], reqLang(req)), locked: false });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Unable to load user posts" });
@@ -184,7 +185,7 @@ async function listRelations(req, res, direction) {
       [viewerId, uid],
     );
 
-    return res.json({ users: rows.map(mapSummary) });
+    return res.json({ users: await translateList(rows.map(mapSummary), ["bio"], reqLang(req)) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: "Unable to load user list" });
