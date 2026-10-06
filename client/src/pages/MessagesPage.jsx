@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import AppLayout from "../components/layout/AppLayout"
+import { useAuth } from "../context/AuthContext"
 import { useMessages } from "../context/MessagesContext"
+import { fetchFollowing } from "../api/users"
 
 function formatTime(iso) {
   const date = new Date(iso)
@@ -34,20 +36,62 @@ function Avatar({ peer, size = "w-11 h-11", text = "text-base" }) {
 
 export default function MessagesPage() {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const { conversations, loadThread, markRead, sendMessage } = useMessages()
   const [activeId, setActiveId] = useState(null)
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
   const [search, setSearch] = useState("")
+  const [contacts, setContacts] = useState([])
   const threadEndRef = useRef(null)
 
+  /* People the viewer follows — they show up in the inbox even before any
+     message exists, so anyone you follow can be messaged directly. */
+  useEffect(() => {
+    if (!user?.username) return undefined
+    let cancelled = false
+    fetchFollowing(user.username)
+      .then((res) => {
+        if (cancelled) return
+        setContacts(
+          (res?.users || []).map((u) => ({
+            id: u.username,
+            peer: { name: u.name || u.username, username: u.username, avatarUrl: u.avatarUrl || null },
+          }))
+        )
+      })
+      .catch(() => { if (!cancelled) setContacts([]) })
+    return () => { cancelled = true }
+  }, [user?.username])
+
+  /* Conversations + followed users, deduped (real history wins) */
+  const merged = useMemo(() => {
+    const byId = new Map()
+    for (const conv of conversations) byId.set(conv.id, conv)
+    for (const contact of contacts) {
+      if (!byId.has(contact.id)) {
+        byId.set(contact.id, {
+          id: contact.id,
+          peer: contact.peer,
+          unread: 0,
+          lastMessage: null,
+          messages: [],
+        })
+      }
+    }
+    return [...byId.values()]
+  }, [conversations, contacts])
+
   const sorted = useMemo(() => {
-    return [...conversations].sort((a, b) => {
-      const aAt = lastMessage(a)?.at || 0
-      const bAt = lastMessage(b)?.at || 0
-      return new Date(bAt) - new Date(aAt)
+    return [...merged].sort((a, b) => {
+      const aAt = lastMessage(a)?.at
+      const bAt = lastMessage(b)?.at
+      if (aAt && bAt) return new Date(bAt) - new Date(aAt)
+      if (aAt) return -1 /* conversations with history come first */
+      if (bAt) return 1
+      return (a.peer?.name || a.id).localeCompare(b.peer?.name || b.id)
     })
-  }, [conversations])
+  }, [merged])
 
   /* Search box filter: peer name, @username, or the last message text */
   const filtered = useMemo(() => {
@@ -201,8 +245,14 @@ export default function MessagesPage() {
                       </span>
                       <span className="flex items-center gap-2 mt-0.5">
                         <span className={`text-xs font-sans-ui truncate ${conv.unread ? "text-[#c9a84c]" : "text-[#7a7060]"}`}>
-                          {last?.from === "me" ? t('messages.youPrefix') : ""}
-                          {last?.text}
+                          {last ? (
+                            <>
+                              {last.from === "me" ? t('messages.youPrefix') : ""}
+                              {last.text}
+                            </>
+                          ) : (
+                            t('messages.newConversation')
+                          )}
                         </span>
                         {conv.unread > 0 && (
                           <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-[#c9a84c] text-[#0e0e0e] text-[10px] font-bold flex items-center justify-center">
@@ -256,6 +306,18 @@ export default function MessagesPage() {
               </header>
 
               <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 space-y-3">
+                {active.messages.length === 0 && (
+                  <div className="h-full min-h-[40vh] flex flex-col items-center justify-center text-center px-6">
+                    <span className="w-12 h-12 rounded-2xl border border-[#2a2a2a] flex items-center justify-center text-[#c9a84c] mb-4">
+                      <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.6}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6.5A2.5 2.5 0 016.5 4h11A2.5 2.5 0 0120 6.5v7A2.5 2.5 0 0117.5 16H9l-5 4V6.5z" />
+                      </svg>
+                    </span>
+                    <p className="text-[#7a7060] text-sm font-sans-ui max-w-xs">
+                      {t('messages.threadStart', { name: active.peer.name.split(" ")[0] })}
+                    </p>
+                  </div>
+                )}
                 {active.messages.map((msg) => {
                   const mine = msg.from === "me"
                   return (

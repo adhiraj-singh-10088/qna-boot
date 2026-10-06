@@ -17,6 +17,12 @@ Every change made through Hermes also updates `AGENTS.md` in the same change set
 
 ## Entries (newest first)
 
+### 2026-10-05 — DMs: followed people show up in the inbox without a prior message   [Hermes agent session]
+- **Feature:** the Messages list now merges `GET /api/users/:username/following` (people you follow) with existing conversations — anyone you follow appears as a "Start a conversation" row even with zero message history, so you can search and message them directly instead of having to share a post first. Opening a new contact shows a "Say hello" starter hint; the first message creates the conversation normally (API paths unchanged — `GET/POST /api/messages/:username` already supported cold starts). Deduped: real history always wins over the placeholder.
+- **Copy:** empty-state text, search placeholder ("Search people or conversations"), plus new `newConversation` / `threadStart` keys — EN/HI/ES.
+- **Verified:** browser flow with the demo account — T9 Alpha (followed, no messages) appears as "Start a conversation"; search "t9" narrows to it; opening shows the starter hint; sending a message renders instantly and the row upgrades to a real conversation preview ("You: Hey T9! …"). `npm run build` green, lint clean.
+- Files: `client/src/pages/MessagesPage.jsx`, `client/src/i18n/locales/{en,hi,es}.json`, `CHANGELOG.md`. ⏳ AGENTS.md `/messages` route line update is pending — the protected-file approval prompt timed out; say "ask for consent again" when at the screen to re-trigger it.
+
 ### 2026-10-05 — DM inbox search bar   [Hermes agent session]
 - **Feature:** search box above the conversation list on `/messages` — filters conversations live by peer name, @username, or last-message text; clear button; "no conversations match" empty state. New i18n keys `messages.searchPlaceholder` / `messages.noResults` / `messages.clearSearch` (EN/HI/ES).
 - **Verified:** `npm run build` + lint clean; browser check (demo session): full list → filtered to "reader" (only Demo Reader) → "zzz-nothing" shows the no-results state → clearing restores the list; screenshots `tour-dm-search-*.png`.
