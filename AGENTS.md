@@ -24,7 +24,7 @@
   - `/search` → `DiscoverPage` — guests get `GuestPrompt`; live user search (debounced) + follow-request accept/decline.
   - `/profile` & `/u/:username` → `ProfilePage` — own profile (Articles + Bookmarks tabs, edit/share) or public profile (follow/unfollow/request button, followers/following modals, private-account lock).
   - `/notifications` → `NotificationsPage` — likes / comments / follows / follow requests & accepts; mark one/all read; badge in Sidebar + BottomNav; also linked from MoreMenu.
-  - `/messages` → `MessagesPage` — real server-backed inbox (conversations, threads, unread badges via `MessagesContext` → `/api/messages`); a search box above the conversation list filters by name / @handle / last-message text (client-side, EN/HI/ES placeholder).
+  - `/messages` → `MessagesPage` — real server-backed inbox (conversations, threads, unread badges via `MessagesContext` → `/api/messages`); people you follow appear automatically as "Start a conversation" rows even without message history (follow list merged client-side), so anyone you follow can be messaged directly; a search box filters by name / @handle / last-message text (client-side, EN/HI/ES placeholder).
   - `/create` → `CreatePostPage` — real publish (`POST /api/posts`) and edit mode (`/create?edit=<id>`, `PUT /api/posts/:id`); navigates to `/post/:id` after publish. Cover images upload for real (`POST /api/uploads` → `cover_url`); "Save Draft" stores a server draft (`status='draft'`) that the editor can reopen and publish.
   - `*` → redirect to `/`.
 - **Guard:** `GuestGuard` renders `GuestPrompt` for unauthenticated users.
