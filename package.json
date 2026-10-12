@@ -1,0 +1,14 @@
+{
+  "name": "inkspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Inkspace — social publishing platform. Deploys to Vercel as one project: client/ (Vite SPA) + server/ (Express API via api/index.mjs).",
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "install:all": "cd client && npm install && cd ../server && npm install",
+    "build": "cd client && npm run build"
+  }
+}

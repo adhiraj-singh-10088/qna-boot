@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
 import authMiddleware from "../middlewares/authMiddleware.js";
@@ -9,12 +10,36 @@ import authMiddleware from "../middlewares/authMiddleware.js";
 /*
  * Image uploads (post covers, avatars).
  * POST /api/uploads  — multipart field "image" → { url: "/uploads/<file>" }
- * Files are stored in server/uploads/ and served statically by server.js.
+ * Files are stored in server/uploads/ (local dev) and served statically by
+ * the app. Serverless hosts (Vercel / AWS Lambda) have a read-only filesystem
+ * except /tmp, so there we fall back to an ephemeral per-instance temp dir —
+ * uploaded files then do not survive redeploys/instance recycling. Use object
+ * storage (e.g. Vercel Blob) for durable uploads in production.
  */
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const UPLOADS_DIR = path.join(__dirname, "..", "uploads");
-fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+/* Resolve a writable uploads directory, or null when nothing is writable
+   (the API keeps working; uploads answer 503 instead of crashing the app). */
+function resolveUploadsDir() {
+  const candidates = [
+    process.env.UPLOADS_DIR, // explicit override wins
+    path.join(__dirname, "..", "uploads"), // default (local dev)
+    path.join(os.tmpdir(), "inkspace-uploads"), // serverless fallback (/tmp)
+  ].filter(Boolean);
+
+  for (const dir of candidates) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      return dir;
+    } catch (err) {
+      console.warn(`[uploads] ${dir} is not writable (${err.code || err.message}); trying next location`);
+    }
+  }
+  return null;
+}
+
+export const UPLOADS_DIR = resolveUploadsDir();
 
 const ALLOWED = new Map([
   ["image/jpeg", ".jpg"],
@@ -63,6 +88,11 @@ function matchesSignature(filePath, ext) {
 const router = express.Router();
 
 router.post("/", authMiddleware, (req, res) => {
+  if (!UPLOADS_DIR) {
+    return res.status(503).json({
+      error: "Image uploads are not available on this deployment (no writable storage).",
+    });
+  }
   upload.single("image")(req, res, (err) => {
     if (err) {
       const message =

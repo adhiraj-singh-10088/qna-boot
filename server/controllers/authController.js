@@ -97,7 +97,7 @@ export async function logout(req, res) {
   res.clearCookie(TOKEN_COOKIE, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL),
     path: "/",
   });
   return res.json({ message: "Logged out" });

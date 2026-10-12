@@ -15,12 +15,14 @@ export function expiresToMs(raw) {
   return Number(match[1]) * multipliers[match[2].toLowerCase()];
 }
 
-/** Options used when setting the login cookie. */
+/* Secure cookies over HTTPS: NODE_ENV is "production" on real hosts, and the
+   VERCEL env var is set on every Vercel deployment (including previews) —
+   both are HTTPS-only, so the flag must be on there. */
 export function loginCookieOptions() {
   return {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL),
     path: "/",
     maxAge: expiresToMs(process.env.JWT_EXPIRES_IN || "1h"),
   };
