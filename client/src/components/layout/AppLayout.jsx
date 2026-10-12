@@ -1,5 +1,6 @@
 import Sidebar from "./Sidebar"
 import BottomNav from "./BottomNav"
+import LanguageSwitcher from "../ui/LanguageSwitcher"
 
 /**
  * <AppLayout />
@@ -20,6 +21,11 @@ export default function AppLayout({ children, wide = false }) {
 
       {/* Persistent desktop sidebar */}
       <Sidebar />
+
+      {/* Language switcher — fixed top-right (slightly inset so full dropdown is clearly visible) */}
+      <div className="fixed top-4 right-6 md:right-8 z-50">
+        <LanguageSwitcher compact align="right" />
+      </div>
 
       {/*
        * Main content area

@@ -1,4 +1,4 @@
-const BASE = '/auth';
+const BASE = 'https://qna-boot-main.onrender.com/auth';
 
 /**
  * Safely parse a fetch Response as JSON.
@@ -21,14 +21,21 @@ async function safeJson(res) {
  */
 export async function signupUser(data) {
   let res;
-  try {
-    res = await fetch(`${BASE}/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(data),
-    });
-  } catch {
+  const endpoints = ['https://qna-boot-main.onrender.com/auth/signup'];
+  for (const url of endpoints) {
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (res.status !== 404) break;
+    } catch {
+      // try next endpoint
+    }
+  }
+  if (!res) {
     throw new Error('Cannot reach the server. Make sure the backend is running.');
   }
   const json = await safeJson(res);
@@ -44,14 +51,21 @@ export async function signupUser(data) {
  */
 export async function loginUser(data) {
   let res;
-  try {
-    res = await fetch(`${BASE}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(data),
-    });
-  } catch {
+  const endpoints = ['https://qna-boot-main.onrender.com/auth/login'];
+  for (const url of endpoints) {
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (res.status !== 404) break;
+    } catch {
+      // try next endpoint
+    }
+  }
+  if (!res) {
     throw new Error('Cannot reach the server. Make sure the backend is running.');
   }
   const json = await safeJson(res);
@@ -86,21 +100,30 @@ export async function getMe(token) {
  * Returns the user object when a valid session cookie is present, else null.
  */
 export async function getSessionUser() {
-  try {
-    const res = await fetch(`${BASE}/me`, { credentials: 'include' });
-    if (!res.ok) return null;
-    const json = await safeJson(res);
-    return json?.user || null;
-  } catch {
-    return null;
+  const endpoints = ['https://qna-boot-main.onrender.com/auth/me'];
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, { credentials: 'include' });
+      if (res.status === 404) continue;
+      if (!res.ok) return null;
+      const json = await safeJson(res);
+      return json?.user || null;
+    } catch {
+      // try next
+    }
   }
+  return null;
 }
 
 /** Ends the session server-side (clears the httpOnly cookie). */
 export async function logoutUser() {
-  try {
-    await fetch(`${BASE}/logout`, { method: 'POST', credentials: 'include' });
-  } catch {
-    /* best effort — local state is cleared regardless */
+  const endpoints = ['https://qna-boot-main.onrender.com/auth/logout'];
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, { method: 'POST', credentials: 'include' });
+      if (res.status !== 404) break;
+    } catch {
+      /* best effort */
+    }
   }
 }

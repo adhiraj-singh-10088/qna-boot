@@ -1,54 +1,74 @@
-import mysql from "mysql2/promise";
-import dotenv from "dotenv";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
 
-/*
- * Load server/.env regardless of the current working directory. On hosts like
- * Vercel there is no .env file — configuration comes from the environment
- * (dashboard variables), and this call is simply a no-op.
- */
-dotenv.config({
-  path: path.join(path.dirname(fileURLToPath(import.meta.url)), "..", ".env"),
-});
+dotenv.config();
 
-/*
- * TiDB Cloud (MySQL-compatible) connection pool.
- * Configuration is strictly environment-driven — deliberately NO hardcoded
- * credential fallbacks. A missing/misconfigured environment now fails
- * visibly (see the error below and /api/health) instead of silently
- * connecting somewhere unexpected.
- */
-const REQUIRED_ENV = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME"];
-export const missingDbEnv = REQUIRED_ENV.filter((key) => !process.env[key]);
+function getDbConfig() {
+  const dbConfig = {
+    host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+    user: '3qo6Ui3yNDZnDmb.root',
+    password: 'QuMFy9zz0DJgpmHX',
+    database: 'qna',
+    port: 4000,
+  };
 
-if (missingDbEnv.length) {
-  console.error(
-    `[db] Missing environment variables: ${missingDbEnv.join(", ")}. ` +
-      "Set them in the hosting dashboard (Vercel → Project → Settings → Environment Variables) " +
-      "or in server/.env locally. GET /api/health will report this too.",
-  );
+  const rawUrl = process.env.DATABASE_URL ||
+                 process.env.MYSQL_URL ||
+                 process.env.TIDB_DATABASE_URL ||
+                 process.env.TIDB_URL;
+
+  if (rawUrl) {
+    try {
+      const u = new URL(rawUrl.replace(/^mysql2:\/\//, 'mysql://'));
+      if (u.hostname) dbConfig.host = u.hostname;
+      if (u.port) dbConfig.port = Number(u.port);
+      if (u.username) dbConfig.user = decodeURIComponent(u.username);
+      if (u.password) {
+        const p = decodeURIComponent(u.password);
+        if (p && !p.includes('<PASSWORD>') && !p.includes('YOUR_PASSWORD') && p !== 'your-db-password') {
+          dbConfig.password = p;
+        }
+      }
+      const db = u.pathname.replace(/^\//, '');
+      if (db) dbConfig.database = db;
+    } catch (e) {
+      console.warn('Failed to parse database URL, falling back to individual variables:', e.message);
+    }
+  }
+
+  if (process.env.DB_HOST) dbConfig.host = process.env.DB_HOST;
+  if (process.env.DB_PORT) dbConfig.port = Number(process.env.DB_PORT);
+  if (process.env.DB_USER) dbConfig.user = process.env.DB_USER;
+  if (process.env.DB_PASSWORD) {
+    const p = process.env.DB_PASSWORD;
+    if (p && !p.includes('<PASSWORD>') && p !== 'YOUR_NEW_TIDB_PASSWORD' && p !== 'your-db-password') {
+      dbConfig.password = p;
+    }
+  }
+  if (process.env.DB_NAME) dbConfig.database = process.env.DB_NAME;
+
+  return dbConfig;
 }
 
+const config = getDbConfig();
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT || 4000),
+  host:               config.host,
+  user:               config.user,
+  password:           config.password,
+  database:           config.database,
+  port:               config.port,
   waitForConnections: true,
-  /* Keep the pool small — serverless platforms run many short-lived instances. */
-  connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 5),
-  queueLimit: 0,
-  /* Fail with a clear error instead of hanging until the platform times out. */
-  connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT || 20000),
-  /* Avoids ECONNRESET on idle sockets (recommended for TiDB Cloud). */
-  enableKeepAlive: true,
-  timezone: "Z", // interpret DATETIME/TIMESTAMP values as UTC (fixes the 5h30m relative-time offset)
+  connectionLimit:    10,
+  queueLimit:         0,
+  enableKeepAlive:    true,
+  keepAliveInitialDelay: 10000,
+  connectTimeout:     20000,
+  timezone:           'Z', // interpret DATETIME/TIMESTAMP values as UTC
   ssl: {
-    minVersion: "TLSv1.2",
-    rejectUnauthorized: true,
-  },
+    minVersion: 'TLSv1.2',
+    rejectUnauthorized: false
+  }
 });
 
 export default pool;

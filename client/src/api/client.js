@@ -52,7 +52,7 @@ export async function apiFetch(path, { method = 'GET', body, auth = true } = {})
 
   let res;
   try {
-    res = await fetch(path, {
+    res = await fetch(`https://qna-boot-main.onrender.com${path}`, {
       method,
       headers,
       credentials: 'include', // send the httpOnly session cookie

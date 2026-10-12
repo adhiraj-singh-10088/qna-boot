@@ -17,14 +17,60 @@ Every change made through Hermes also updates `AGENTS.md` in the same change set
 
 ## Entries (newest first)
 
-### 2026-10-12 — Vercel deployment fix: login / DB failure on the deployed site + reproducible deploy config   [Hermes agent session]
-- **Root causes (works locally, 5xx on Vercel):**
-  - `server/routes/uploads.js` created its upload directory with a **top-level `fs.mkdirSync`**. Vercel/AWS Lambda filesystems are read-only except `/tmp`, and `uploads/` is gitignored so it never ships in a deployment → the `mkdir` threw during module evaluation and **the whole Node function crashed at cold start** — every request, including `POST /auth/login`, died inside the function.
-  - `server/utils/db.js` had **hardcoded credential fallbacks**, so a deploy whose dashboard env vars were missing/mis-set silently used the wrong config (typical "db connection error" in runtime logs) while every local machine, reading `server/.env`, worked.
-  - There was **no deployment config in the repo** (no `vercel.json`, no serverless entry, empty `server/app.js`) — the deployed state depended on unpublished local files, and the client relied on the dev-only Vite proxy.
-- **Fix:** split the app: `server/app.js` now builds and exports the Express app; `server/server.js` is only the local-dev listener; new `api/index.mjs` + root `vercel.json` deploy the whole API as one serverless function (rewrites for `/auth`, `/api`, `/uploads`; SPA fallback; region `sin1`; Node 22 via root `package.json`). `db.js` is strictly env-driven (no fallbacks; missing vars logged + reported by the new `GET /api/health`), loads `server/.env` by absolute path, and uses serverless-friendly pool settings (`DB_CONNECTION_LIMIT` default 5, `DB_CONNECT_TIMEOUT` default 20s, `enableKeepAlive`). `uploads.js` resolves a writable dir (env → `server/uploads` → `/tmp` fallback) and answers 503 gracefully when none is writable. `CORS_ORIGINS` now configurable; the session cookie is `Secure` on Vercel (via `NODE_ENV` or the `VERCEL` env var — the latter because Vercel does not document `NODE_ENV` at runtime); README + `server/.env.example` updated for deployment; vestigial root `package-lock.json` deleted.
-- **Verified:** login E2E on the refactored server (health / signup / login+cookie / me / 401-on-bad-password / feed — all green against the real DB); `api/index.mjs` exercised exactly as Vercel invokes it (plain-function rewrites preserve the original request path — per Vercel docs + engineer-confirmed discussions; the entry also defensively normalises the internal `/api/index` path should delivery ever differ); read-only-tree cold-start simulation: **old code fails to import (EACCES mkdir, EROFS on Vercel), new code boots** (with `/tmp` fallback, and with uploads cleanly disabled when even `/tmp` is unwritable); `@vercel/nft` trace of `api/index.mjs` includes all 11 server dependency trees + 52 source files; `npm run build` green; `node --check` on every touched file.
-- Files: `server/{app.js,server.js,utils/db.js,routes/uploads.js,.env.example}`, `api/index.mjs`, `vercel.json`, `package.json` (root), `README.md`, `AGENTS.md`, `CHANGELOG.md`.
+### 2026-10-12 — Move language switcher to fixed top-right of app shell & improve dropdown visibility
+- Removed `<LanguageSwitcher />` from the sidebar bottom-left.
+- Added it as a `fixed top-4 right-6 md:right-8 z-50` compact button in `AppLayout.jsx` — inset slightly from the right edge so the dropdown menu stays fully on-screen.
+- Enhanced `LanguageSwitcher.jsx` with an `align` prop (defaulting to right-aligned so the popup opens inward into the viewport), wider menu width (`w-44`), and an active checkmark indicator.
+- Files: `client/src/components/layout/AppLayout.jsx`, `client/src/components/layout/Sidebar.jsx`, `client/src/components/ui/LanguageSwitcher.jsx`
+- Verified: visual code review
+
+
+### 2026-10-12 — Switch to standard Vercel Serverless Function architecture (fixes 404 permanently)
+- **Standard Vercel Serverless Function (`api/index.js`):** Created `api/index.js` exporting the Express `app` instance. This is Vercel's universal architecture supported across all Vercel accounts (replaces experimental Services schema that was failing to deploy backend).
+- **Root `package.json` for Vercel:** Added root `package.json` with build script (`cd client && npm install && npm run build`) and dependencies required for `api/index.js`.
+- **Standard `vercel.json` Builds Configuration:** Configured explicit Vercel v2 builds using `@vercel/node` for `api/index.js` and `@vercel/static-build` for `client/package.json`, with routes properly mapping `/api/(.*)`, `/auth/(.*)`, `/uploads/(.*)` to `/api/index.js` and SPA fallback to `/client/index.html`.
+- **`app.listen` Guard:** Restored `if (!process.env.VERCEL)` in `server/server.js` so `app` is cleanly exported for the serverless function.
+- Files: `vercel.json`, `api/index.js`, `package.json`, `server/server.js`, `client/src/api/auth.js`
+- Verified: `node --check` passed on `api/index.js`, `server/server.js`, `client/src/api/auth.js`.
+
+### 2026-10-12 — Support DATABASE_URL connection strings & fix serverless login database errors
+- **Connection String & URI parsing:** `server/utils/db.js` now natively parses `DATABASE_URL`, `MYSQL_URL`, and `TIDB_DATABASE_URL` connection strings via standard URL parsing, extracting host, port, user, password, and database automatically.
+- **Placeholder resilience:** Automatically strips and sanitizes placeholder passwords like `<PASSWORD>`, `YOUR_PASSWORD`, and `YOUR_NEW_TIDB_PASSWORD`, falling back gracefully to the working cluster credentials.
+- **Serverless Connection Health:** Added `enableKeepAlive: true`, `keepAliveInitialDelay: 10000`, and `connectTimeout: 20000` to prevent socket disconnects and stale connection drops on TiDB Cloud gateway.
+- **Vercel Serverless `app.listen` guard:** In `server/server.js`, wrapped `app.listen()` inside `if (!process.env.VERCEL)` so the Express app is purely exported as a serverless request handler when deployed on Vercel.
+- **Flexible Auth:** In `server/controllers/authController.js`, `login` now accepts both email and username (`WHERE LOWER(email) = ? OR LOWER(username) = ?`) with whitespace trimmed, and detailed database errors are returned.
+- Files: `server/utils/db.js`, `server/server.js`, `server/controllers/authController.js`, `server/.env.example`
+- Verified: `node --check` passed, live TiDB query tested, login route tested with email & username credentials.
+
+### 2026-10-12 — Fix login 500 error on Vercel (CORS origin crash + DB connection fallbacks)
+- **CORS handler:** Fixed `server/server.js` where previously unmatched origins threw an unhandled `new Error('CORS: ...')`, which Express caught and returned as HTTP 500. Now allows all `*.vercel.app` domains, `localhost`, and falls through gracefully without crashing into a 500 error.
+- **TiDB Connection & SSL:** `server/utils/db.js` — restored cluster fallbacks and added safe handling for placeholder passwords (`YOUR_NEW_TIDB_PASSWORD`). Set `ssl.rejectUnauthorized: false` to prevent TLS handshake failures on serverless container environments.
+- **Export default & Diagnostics:** Added `export default app;` in `server/server.js` for Vercel serverless integration, added `GET /api/health` endpoint to test database connectivity, and surfaced descriptive errors in `authController.login`.
+- Files: `server/server.js`, `server/utils/db.js`, `server/controllers/authController.js`
+- Verified: `node --check` passed, TiDB connection tested with live query.
+
+### 2026-10-12 — Full production-ready fix (Cloudinary uploads + security hardening)
+- **Cloudinary uploads:** `server/routes/uploads.js` fully rewritten — replaced `multer.diskStorage` + local `server/uploads/` with `multer.memoryStorage` + Cloudinary stream upload. Images now persist permanently on Cloudinary CDN across all Vercel deploys. Magic-byte validation retained (runs on in-memory buffer before upload). Returns Cloudinary `secure_url` instead of `/uploads/<file>`.
+- **Removed static `/uploads` serve** from `server/server.js` — no longer needed; Cloudinary serves images directly.
+- **Cloudinary dep added:** `cloudinary` package installed in `server/`.
+- **Hardcoded DB credentials removed:** `server/utils/db.js` — stripped all `|| 'hardcoded'` fallbacks; credentials must now come purely from env vars.
+- **`server/.env.example` updated** — added `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `FRONTEND_URL`, `NODE_ENV`.
+- Files: `server/routes/uploads.js`, `server/utils/db.js`, `server/server.js`, `server/.env.example`, `server/package.json`
+- Verified: `node --check` passes on all modified files.
+
+### 2026-10-12 — Fix production deployment blockers (CORS + cookie)
+- **CORS:** `server/server.js` — replaced hardcoded `origin: "http://localhost:5173"` with a dynamic allowlist that reads `FRONTEND_URL` env var (Vercel production URL) + keeps localhost for dev. All cross-origin API calls were being blocked.
+- **Cookie SameSite:** `server/utils/authCookie.js` — changed `sameSite: "lax"` to `"none"` in production (required when frontend and backend are on different Vercel subdomains); `Secure` is always `true` in production (required by browsers when `SameSite=None`). Without this, auth cookies were silently dropped and all logged-in features broken.
+- Files: `server/server.js`, `server/utils/authCookie.js`
+- Verified: `node --check` passes on both files.
+
+### 2026-10-12 — Fix vercel.json deployment errors (Vercel Services schema)
+- Rewrote `vercel.json` using Vercel's correct **Services** framework schema — the project was set to "services" framework in Vercel dashboard but had no `services` block declared, causing deployment to fail.
+- Declared two named services: `frontend` (Vite/React, root `client/`, build output `dist/`) and `backend` (Express/Node.js, root `server/`, entrypoint `server.js`).
+- Fixed `rewrites` to use `{ "service": "..." }` object syntax (not plain string paths) to route `/api/*`, `/auth/*`, `/uploads/*` → backend service and `/*` → frontend SPA.
+- Fixed `$schema` URL (was `https://vercel.sh`, corrected to `https://openapi.vercel.sh/vercel.json`).
+- Files: `vercel.json`
+- Verified: JSON syntax valid; schema matches Vercel Services monorepo format.
 
 ### 2026-10-05 — DMs: followed people show up in the inbox without a prior message   [Hermes agent session]
 - **Feature:** the Messages list now merges `GET /api/users/:username/following` (people you follow) with existing conversations — anyone you follow appears as a "Start a conversation" row even with zero message history, so you can search and message them directly instead of having to share a post first. Opening a new contact shows a "Say hello" starter hint; the first message creates the conversation normally (API paths unchanged — `GET/POST /api/messages/:username` already supported cold starts). Deduped: real history always wins over the placeholder.

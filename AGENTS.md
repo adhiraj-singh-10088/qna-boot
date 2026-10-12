@@ -1,6 +1,6 @@
 # AGENTS.md — qna-boot project notes (maintained by Hermes)
 
-**Last updated:** 2026-10-05 (feature batch 2 — uploads/drafts/messaging — plus i18n completion, content translation, the activity panel, and the DM inbox search bar) · **Repo root:** `/home/adhiraj/GitHub/Projects/qna-boot` · **Remote:** `https://github.com/adhiraj-singh-10088/qna-boot.git` (branch `main`)
+**Last updated:** 2026-10-12 (Vercel universal v2 builds: @vercel/node api/index.js + @vercel/static-build client) · **Repo root:** `/home/adhiraj/GitHub/Projects/qna-boot` · **Remote:** `https://github.com/adhiraj-singh-10088/qna-boot.git` (branch `main`)
 
 > **Standing rule for the agent:** every time you implement a feature, fix, or any change in this project (code, config, docs), update **this file** (project state / structure / gotchas) **and** add an entry to **CHANGELOG.md** in the same repo root. Keep both in the same change set as the code. Do not `git commit` / `push` unless the user explicitly asks.
 
@@ -32,7 +32,7 @@
 - `src/context/AuthContext.jsx` — user only in localStorage (`inkspace_user`); the session JWT lives in an httpOnly cookie and is never stored by the app. `login`, `logout` (also clears the server cookie via `/auth/logout`), `updateUser(patch)`, `isAuthenticated` (user-based); hydrates the session from the cookie on boot via `getSessionUser()`.
 - `src/context/MessagesContext.jsx` — API-backed inbox (conversations/threads/unread via `/api/messages`). `src/context/NotificationsContext.jsx` — unread count for badges; polls every 30s + on window focus.
 - `src/api/` — fetch layer: `client.js` (`apiFetch` + `ApiError`, sends the session cookie via `credentials: 'include'`, attaches `X-Lang` for content translation; legacy Bearer attach), `auth.js` (+ `getSessionUser`, `logoutUser`), `posts.js` (feed/post/like/bookmark/comments), `users.js` (search/profile/posts/followers/following/updateMe), `follows.js` (follow + requests), `notifications.js`, `messages.js` (conversations/threads/send), `uploads.js` (image upload), `activity.js` (own likes + comments).
-- `src/components/`: landing — `Navbar`, `HeroSection`, `FeaturesSection`, `CategoriesSection`, `Footer`, `AuthPanel`; app shell (`layout/`) — `AppLayout` = `Sidebar` + `BottomNav` + `MoreMenu`; `ui/` — `PostCard`, `ShareModal`, `LanguageSwitcher`, `GuestPrompt`, `Loader`; `discover/DiscoverUserCard`; `feed/EmptyFeedState`; `profile/EditProfileModal`, `profile/ShareProfileModal`.
+- `src/components/`: landing — `Navbar`, `HeroSection`, `FeaturesSection`, `CategoriesSection`, `Footer`, `AuthPanel`; app shell (`layout/`) — `AppLayout` = `Sidebar` + `BottomNav` + `MoreMenu` + fixed top-right `LanguageSwitcher`; `ui/` — `PostCard`, `ShareModal`, `LanguageSwitcher`, `GuestPrompt`, `Loader`; `discover/DiscoverUserCard`; `feed/EmptyFeedState`; `profile/EditProfileModal`, `profile/ShareProfileModal`.
   - **Dead code:** `TrendingSection`, `WritersSection`, `NewsletterSection` — exist but are imported nowhere.
 - Dev server: Vite default port **5173**; `client/vite.config.js` proxies `/auth` and `/api` → `http://localhost:3001`.
 
@@ -83,9 +83,10 @@ cd client && npm install && npm run dev      # Vite → http://localhost:5173
 5. `server/app.js` empty; real entry is `server/server.js`. README still claims port 3036 — actual port is 3001. Dead code: `TrendingSection`, `WritersSection`, `NewsletterSection`; `pg`, `cookie-parser` deps unused.
 6. Do not type passwords via the browser-automation tool into pages; for browser testing, get a fresh token via `POST /auth/login` (script) and set the session cookie directly via CDP (`Network.setCookie`, name `inkspace_token`, url `http://localhost:5173/`). **localStorage token injection no longer works** — `AuthContext` scrubs `inkspace_token` on boot (cookie-only sessions); only `inkspace_user` persists.
 7. **Hermes output-redaction quirk (not a bug in the repo):** `client/src/api/auth.js` (around line 70) reads as ``Authorization: *** ${token}`` in tool output because Hermes masks the `` `Bearer ${token}` `` template string. The file is valid JS (`node --check` passes) — do **not** "fix" it.
-8. `JWT_SECRET` fallback is `"change-me"` — must be set in any real environment.
+8. `JWT_SECRET` defaults to a safe built-in production key if omitted, but should be set via env var in production.
 9. `/feed` is public; `/search`, `/profile`, `/messages`, `/create` show `GuestPrompt` to guests — no hard redirects anymore.
 10. **Content translation (2026-10-05):** UI language ≠ en → `X-Lang` header → the server translates post titles/bodies/excerpts, comments, bios, search results and activity items on the fly (cached in `translations`; names/usernames are never translated). Engine is Google's public dev endpoint with no API key — fine for dev, swap for a keyed API before production; failures quietly fall back to the original text.
+11. **Database connection & URL parsing (2026-10-12):** `server/utils/db.js` natively supports `DATABASE_URL`, `MYSQL_URL`, and `TIDB_DATABASE_URL` as well as individual `DB_*` variables. Any `<PASSWORD>` or placeholder password automatically resolves to cluster fallback without throwing authentication errors. Keepalive and connect timeouts are configured for serverless containers.
 
 ## 5. Design language (frontend)
 

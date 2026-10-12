@@ -153,11 +153,8 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* ── Bottom: language + settings/more ────────────────────────── */}
+      {/* ── Bottom: settings/more ────────────────────────────────────── */}
       <div className="mt-4 flex flex-col gap-2">
-        <div className="hidden xl:flex justify-start px-2 pb-1">
-          <LanguageSwitcher />
-        </div>
         <MoreMenu />
       </div>
     </aside>

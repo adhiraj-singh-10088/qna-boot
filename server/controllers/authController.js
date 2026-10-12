@@ -25,6 +25,7 @@ export async function signup(req, res) {
     return res.status(400).json({ error: "Missing required fields" });
   }
 
+  const cleanEmail = String(email).toLowerCase().trim();
   const cleanUsername = String(username).toLowerCase().trim();
   const cleanFullName = typeof full_name === "string" && full_name.trim()
     ? full_name.trim().slice(0, 100)
@@ -35,18 +36,18 @@ export async function signup(req, res) {
 
     const [result] = await pool.execute(
       "INSERT INTO users (email, dob, username, password, full_name) VALUES (?, ?, ?, ?, ?)",
-      [email, dob, cleanUsername, hashed, cleanFullName],
+      [cleanEmail, dob, cleanUsername, hashed, cleanFullName],
     );
 
-    return res.status(201).json({ id: result.insertId, email, username: cleanUsername, full_name: cleanFullName });
+    return res.status(201).json({ id: result.insertId, email: cleanEmail, username: cleanUsername, full_name: cleanFullName });
   } catch (err) {
     if (err && err.code === "ER_DUP_ENTRY") {
       return res
         .status(409)
         .json({ error: "Email or username already exists" });
     }
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
+    console.error("Signup error:", err);
+    return res.status(500).json({ error: err.message || "Server error" });
   }
 }
 
@@ -57,10 +58,12 @@ export async function login(req, res) {
     return res.status(400).json({ error: "Missing email or password" });
   }
 
+  const identifier = String(email).toLowerCase().trim();
+
   try {
     const [rows] = await pool.execute(
-      "SELECT uid AS id, email, username, password, dob, full_name, bio, is_private, avatar_url, created_at FROM users WHERE email = ? LIMIT 1",
-      [email],
+      "SELECT uid AS id, email, username, password, dob, full_name, bio, is_private, avatar_url, created_at FROM users WHERE LOWER(email) = ? OR LOWER(username) = ? LIMIT 1",
+      [identifier, identifier],
     );
     const user = rows && rows[0];
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
@@ -87,8 +90,8 @@ export async function login(req, res) {
 
     return res.json({ message: "Login successful", token, user: safeUser });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Server error" });
+    console.error("Login error:", err);
+    return res.status(500).json({ error: err.message || "Server error" });
   }
 }
 
@@ -97,7 +100,7 @@ export async function logout(req, res) {
   res.clearCookie(TOKEN_COOKIE, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL),
+    secure: process.env.NODE_ENV === "production",
     path: "/",
   });
   return res.json({ message: "Logged out" });

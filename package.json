@@ -1,14 +1,24 @@
 {
-  "name": "inkspace",
+  "name": "inkspace-app",
   "version": "1.0.0",
   "private": true,
-  "description": "Inkspace — social publishing platform. Deploys to Vercel as one project: client/ (Vite SPA) + server/ (Express API via api/index.mjs).",
   "type": "module",
-  "engines": {
-    "node": "22.x"
-  },
   "scripts": {
-    "install:all": "cd client && npm install && cd ../server && npm install",
-    "build": "cd client && npm run build"
+    "build": "cd client && npm install && npm run build"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.4.0",
+    "mysql2": "^3.5.2",
+    "pg": "^8.23.0",
+    "sanitize-html": "^2.18.0"
   }
 }

@@ -1,99 +1,68 @@
 import express from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
-import os from "os";
-import crypto from "crypto";
-import { fileURLToPath } from "url";
+import { v2 as cloudinary } from "cloudinary";
+import { Readable } from "stream";
 import authMiddleware from "../middlewares/authMiddleware.js";
 
 /*
- * Image uploads (post covers, avatars).
- * POST /api/uploads  — multipart field "image" → { url: "/uploads/<file>" }
- * Files are stored in server/uploads/ (local dev) and served statically by
- * the app. Serverless hosts (Vercel / AWS Lambda) have a read-only filesystem
- * except /tmp, so there we fall back to an ephemeral per-instance temp dir —
- * uploaded files then do not survive redeploys/instance recycling. Use object
- * storage (e.g. Vercel Blob) for durable uploads in production.
+ * Image uploads (post covers, avatars) — stored on Cloudinary.
+ * POST /api/uploads  — multipart field "image" → { url: "<cloudinary_url>" }
+ * Cloudinary is configured via env vars:
+ *   CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
  */
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure:     true,
+});
 
-/* Resolve a writable uploads directory, or null when nothing is writable
-   (the API keeps working; uploads answer 503 instead of crashing the app). */
-function resolveUploadsDir() {
-  const candidates = [
-    process.env.UPLOADS_DIR, // explicit override wins
-    path.join(__dirname, "..", "uploads"), // default (local dev)
-    path.join(os.tmpdir(), "inkspace-uploads"), // serverless fallback (/tmp)
-  ].filter(Boolean);
+const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
-  for (const dir of candidates) {
-    try {
-      fs.mkdirSync(dir, { recursive: true });
-      return dir;
-    } catch (err) {
-      console.warn(`[uploads] ${dir} is not writable (${err.code || err.message}); trying next location`);
-    }
-  }
-  return null;
-}
-
-export const UPLOADS_DIR = resolveUploadsDir();
-
-const ALLOWED = new Map([
-  ["image/jpeg", ".jpg"],
-  ["image/png", ".png"],
-  ["image/webp", ".webp"],
-  ["image/gif", ".gif"],
-]);
-
+/* Use memory storage — we stream the buffer to Cloudinary, no local disk needed */
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-    filename: (req, file, cb) => {
-      const ext = ALLOWED.get(file.mimetype) || ".bin";
-      cb(null, `${Date.now().toString(36)}-${crypto.randomBytes(6).toString("hex")}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
-  fileFilter: (req, file, cb) => {
-    if (!ALLOWED.has(file.mimetype)) {
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_MIME.has(file.mimetype)) {
       return cb(new Error("Only JPEG, PNG, WebP or GIF images are allowed"));
     }
     cb(null, true);
   },
 });
 
-/* Magic-byte signatures — the declared MIME type must match the real bytes. */
-function matchesSignature(filePath, ext) {
-  const fd = fs.openSync(filePath, "r");
-  try {
-    const buf = Buffer.alloc(12);
-    const read = fs.readSync(fd, buf, 0, 12, 0);
-    if (read < 4) return false;
-    const startsWith = (sig) => sig.every((b, i) => buf[i] === b);
-    switch (ext) {
-      case ".png": return startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-      case ".jpg": return startsWith([0xff, 0xd8, 0xff]);
-      case ".gif": return startsWith([0x47, 0x49, 0x46, 0x38]);
-      case ".webp": return startsWith([0x52, 0x49, 0x46, 0x46]) && buf.slice(8, 12).toString("ascii") === "WEBP";
-      default: return false;
-    }
-  } finally {
-    fs.closeSync(fd);
+/* Magic-byte signatures — validate buffer before uploading to Cloudinary */
+function hasValidSignature(buf, mimetype) {
+  if (buf.length < 12) return false;
+  switch (mimetype) {
+    case "image/png":  return buf[0]===0x89 && buf[1]===0x50 && buf[2]===0x4e && buf[3]===0x47;
+    case "image/jpeg": return buf[0]===0xff && buf[1]===0xd8 && buf[2]===0xff;
+    case "image/gif":  return buf[0]===0x47 && buf[1]===0x49 && buf[2]===0x46 && buf[3]===0x38;
+    case "image/webp": return buf[0]===0x52 && buf[1]===0x49 && buf[2]===0x46 && buf[3]===0x46
+                           && buf.slice(8,12).toString("ascii") === "WEBP";
+    default: return false;
   }
+}
+
+/* Upload buffer to Cloudinary via a stream */
+function uploadToCloudinary(buffer, mimetype) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: "inkspace", resource_type: "image" },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
+    Readable.from(buffer).pipe(stream);
+  });
 }
 
 const router = express.Router();
 
 router.post("/", authMiddleware, (req, res) => {
-  if (!UPLOADS_DIR) {
-    return res.status(503).json({
-      error: "Image uploads are not available on this deployment (no writable storage).",
-    });
-  }
-  upload.single("image")(req, res, (err) => {
+  upload.single("image")(req, res, async (err) => {
     if (err) {
       const message =
         err.code === "LIMIT_FILE_SIZE" ? "Image too large (max 5 MB)" : err.message || "Upload failed";
@@ -101,14 +70,18 @@ router.post("/", authMiddleware, (req, res) => {
     }
     if (!req.file) return res.status(400).json({ error: "No image uploaded" });
 
-    /* Magic-byte check: declared MIME type must match the actual file content. */
-    const ext = path.extname(req.file.filename).toLowerCase();
-    if (!matchesSignature(req.file.path, ext)) {
-      fs.unlinkSync(req.file.path);
+    /* Magic-byte check */
+    if (!hasValidSignature(req.file.buffer, req.file.mimetype)) {
       return res.status(400).json({ error: "File content does not match an allowed image type" });
     }
 
-    return res.status(201).json({ url: `/uploads/${req.file.filename}` });
+    try {
+      const url = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
+      return res.status(201).json({ url });
+    } catch (uploadErr) {
+      console.error("Cloudinary upload error:", uploadErr);
+      return res.status(500).json({ error: "Image upload failed. Please try again." });
+    }
   });
 });
 

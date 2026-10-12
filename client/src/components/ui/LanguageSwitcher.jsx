@@ -15,7 +15,7 @@ function GlobeIcon() {
  * <LanguageSwitcher />
  * Small dropdown to change the UI language (persisted by i18n/index.js).
  */
-export default function LanguageSwitcher({ compact = false }) {
+export default function LanguageSwitcher({ compact = false, align = "right" }) {
   const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -34,6 +34,8 @@ export default function LanguageSwitcher({ compact = false }) {
     }
   }, [open])
 
+  const alignmentClass = align === "left" ? "left-0" : "right-0"
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -49,16 +51,19 @@ export default function LanguageSwitcher({ compact = false }) {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 z-50 w-40 bg-[#161616] border border-[#2a2a2a] rounded-xl shadow-2xl overflow-hidden">
+        <div className={`absolute ${alignmentClass} mt-2 z-50 w-44 bg-[#161616] border border-[#2a2a2a] rounded-xl shadow-2xl overflow-hidden py-1`}>
           {LANGUAGES.map((l) => (
             <button
               key={l.code}
               type="button"
               onClick={() => { setLanguage(l.code); setOpen(false) }}
-              className={`w-full text-left px-4 py-2.5 text-sm font-sans-ui transition-colors
-                ${l.code === current.code ? "text-[#c9a84c] bg-[#1f1c16]" : "text-[#e8e0d4] hover:bg-[#1a1a1a]"}`}
+              className={`w-full text-left px-4 py-2.5 text-sm font-sans-ui transition-colors flex items-center justify-between
+                ${l.code === current.code ? "text-[#c9a84c] bg-[#1f1c16] font-medium" : "text-[#e8e0d4] hover:bg-[#1a1a1a]"}`}
             >
-              {l.label}
+              <span>{l.label}</span>
+              {l.code === current.code && (
+                <span className="text-[#c9a84c] text-xs">✓</span>
+              )}
             </button>
           ))}
         </div>
